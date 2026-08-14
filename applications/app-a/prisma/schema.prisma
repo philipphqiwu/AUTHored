@@ -1,0 +1,44 @@
+datasource db {
+    provider = "postgresql"
+    url      = env("DATABASE_URL")
+}
+
+generator client {
+    provider = "prisma-client-js"
+}
+
+model LocalSession {
+    id               String    @id @default(uuid())
+    sessionTokenHash String    @map("session_token_hash")
+    externalUserId   String    @map("external_user_id")
+    centralSessionId String    @map("central_session_id")
+    status           String    @default("active")
+    createdAt        DateTime  @default(now()) @map("created_at")
+    expiresAt        DateTime  @map("expires_at")
+    lastActivityAt   DateTime? @map("last_activity_at")
+    revokedAt        DateTime? @map("revoked_at")
+    revokeReason     String?   @map("revoke_reason")
+
+    @@map("local_sessions")
+}
+
+model ProfileCache {
+    externalUserId String   @id @map("external_user_id")
+    name           String
+    email          String
+    groups         Json?
+    syncedAt       DateTime @default(now()) @map("synced_at")
+    createdAt      DateTime @default(now()) @map("created_at")
+    updatedAt      DateTime @updatedAt @map("updated_at")
+
+    @@map("profile_cache")
+}
+
+model ProcessedEvent {
+    eventId     String   @id @map("event_id")
+    eventType   String   @map("event_type")
+    processedAt DateTime @default(now()) @map("processed_at")
+    result      String
+
+    @@map("processed_events")
+}
