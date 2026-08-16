@@ -1,0 +1,27 @@
+<h1>Dashboard</h1>
+
+<div style="display: grid; grid-template-columns: repeat(auto-fit, minmax(200px, 1fr)); gap: 1.5rem;">
+  <div class="card">
+    <h2 style="font-size: 0.9rem; color: #718096; text-transform: uppercase; letter-spacing: 0.05em;">Users</h2>
+    <p style="font-size: 2rem; font-weight: 600; color: #1a202c;"><%= userCount %></p>
+    <a href="/users" class="btn btn-secondary btn-sm">View all</a>
+  </div>
+
+  <div class="card">
+    <h2 style="font-size: 0.9rem; color: #718096; text-transform: uppercase; letter-spacing: 0.05em;">Groups</h2>
+    <p style="font-size: 2rem; font-weight: 600; color: #1a202c;"><%= groupCount %></p>
+    <a href="/groups" class="btn btn-secondary btn-sm">View all</a>
+  </div>
+
+  <div class="card">
+    <h2 style="font-size: 0.9rem; color: #718096; text-transform: uppercase; letter-spacing: 0.05em;">Applications</h2>
+    <p style="font-size: 2rem; font-weight: 600; color: #1a202c;"><%= appCount %></p>
+    <a href="/applications" class="btn btn-secondary btn-sm">View all</a>
+  </div>
+
+  <div class="card" style="background: #f7fafc; border: 2px dashed #cbd5e0;">
+    <h2 style="font-size: 0.9rem; color: #718096; text-transform: uppercase; letter-spacing: 0.05em;">Metrics Dashboard</h2>
+    <p style="font-size: 1rem; color: #a0aec0; margin-top: 0.5rem;">Coming Soon</p>
+    <small style="color: #a0aec0;">Latency, errors, queue depth</small>
+  </div>
+</div>

@@ -1,0 +1,25 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8">
+  <title><%= title || 'Control Panel' %></title>
+  <link rel="stylesheet" href="/css/style.css">
+</head>
+<body>
+  <% if (title !== 'Login') { %>
+  <nav>
+    <a href="/">Dashboard</a>
+    <a href="/users">Users</a>
+    <a href="/groups">Groups</a>
+    <a href="/applications">Applications</a>
+    <form method="POST" action="/logout" style="float:right">
+      <button type="submit">Logout</button>
+    </form>
+  </nav>
+  <% } %>
+
+  <main>
+    <%- body %>
+  </main>
+</body>
+</html>

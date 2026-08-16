@@ -1,0 +1,211 @@
+datasource db {
+    provider = "postgresql"
+    url      = env("DATABASE_URL")
+}
+
+generator client {
+    provider = "prisma-client-js"
+}
+
+model User {
+    id           String   @id @default(uuid())
+    name         String
+    email        String   @unique
+    passwordHash String   @map("password_hash")
+    status       String   @default("active")
+    createdAt    DateTime @default(now()) @map("created_at")
+    updatedAt    DateTime @updatedAt @map("updated_at")
+
+    userGroups       UserGroup[]
+    ssoSessions      SsoSession[]
+    authorizationCodes AuthorizationCode[]
+    accessTokens     AccessToken[]
+    events           Event[]
+    auditLogs        AuditLog[]
+
+    @@map("users")
+}
+
+model Group {
+    id          String   @id @default(uuid())
+    name        String   @unique
+    description String?
+    createdAt   DateTime @default(now()) @map("created_at")
+    updatedAt   DateTime @updatedAt @map("updated_at")
+
+    userGroups  UserGroup[]
+    policies    ApplicationGroupPolicy[]
+
+    @@map("groups")
+}
+
+model UserGroup {
+    id        String   @id @default(uuid())
+    userId    String   @map("user_id")
+    groupId   String   @map("group_id")
+    createdAt DateTime @default(now()) @map("created_at")
+
+    user  User  @relation(fields: [userId], references: [id], onDelete: Cascade)
+    group Group @relation(fields: [groupId], references: [id], onDelete: Cascade)
+
+    @@unique([userId, groupId])
+    @@map("user_groups")
+}
+
+model Application {
+    id                   String   @id @default(uuid())
+    name                 String
+    clientId             String   @unique @map("client_id")
+    clientSecretHash     String?  @map("client_secret_hash")
+    status               String   @default("active")
+    launchUrl            String?  @map("launch_url")
+    logoutNotificationUrl String  @map("logout_notification_url")
+    createdAt            DateTime @default(now()) @map("created_at")
+    updatedAt            DateTime @updatedAt @map("updated_at")
+
+    redirectUris ApplicationRedirectUri[]
+    policies     ApplicationGroupPolicy[]
+    authCodes    AuthorizationCode[]
+    accessTokens AccessToken[]
+    events       Event[]
+    deliveries   EventDelivery[]
+
+    @@map("applications")
+}
+
+model ApplicationRedirectUri {
+    id            String      @id @default(uuid())
+    applicationId String      @map("application_id")
+    redirectUri   String      @map("redirect_uri")
+    createdAt     DateTime    @default(now()) @map("created_at")
+    application   Application @relation(fields: [applicationId], references: [id], onDelete: Cascade)
+
+    @@map("application_redirect_uris")
+}
+
+model ApplicationGroupPolicy {
+    id            String      @id @default(uuid())
+    applicationId String      @map("application_id")
+    groupId       String      @map("group_id")
+    effect        String      @default("allow")
+    createdAt     DateTime    @default(now()) @map("created_at")
+
+    application Application @relation(fields: [applicationId], references: [id], onDelete: Cascade)
+    group       Group       @relation(fields: [groupId], references: [id], onDelete: Cascade)
+
+    @@unique([applicationId, groupId, effect])
+    @@map("application_group_policies")
+}
+
+model SsoSession {
+    id               String    @id @default(uuid())
+    userId           String    @map("user_id")
+    sessionTokenHash String    @map("session_token_hash")
+    status           String    @default("active")
+    createdAt        DateTime  @default(now()) @map("created_at")
+    expiresAt        DateTime  @map("expires_at")
+    lastActivityAt   DateTime? @map("last_activity_at")
+    revokedAt        DateTime? @map("revoked_at")
+    revokeReason     String?   @map("revoke_reason")
+    ipAddress        String?   @map("ip_address")
+    userAgent        String?   @map("user_agent")
+
+    user             User              @relation(fields: [userId], references: [id], onDelete: Cascade)
+    authorizationCodes AuthorizationCode[]
+    accessTokens     AccessToken[]
+    events           Event[]
+
+    @@map("sso_sessions")
+}
+
+model AuthorizationCode {
+    id            String    @id @default(uuid())
+    codeHash      String    @map("code_hash")
+    userId        String    @map("user_id")
+    applicationId String    @map("application_id")
+    ssoSessionId  String    @map("sso_session_id")
+    redirectUri   String    @map("redirect_uri")
+    codeChallenge String    @map("code_challenge")
+    codeChallengeMethod String @map("code_challenge_method")
+    createdAt     DateTime  @default(now()) @map("created_at")
+    expiresAt     DateTime  @map("expires_at")
+    usedAt        DateTime? @map("used_at")
+
+    user        User        @relation(fields: [userId], references: [id], onDelete: Cascade)
+    application Application @relation(fields: [applicationId], references: [id], onDelete: Cascade)
+    ssoSession  SsoSession  @relation(fields: [ssoSessionId], references: [id], onDelete: Cascade)
+
+    @@map("authorization_codes")
+}
+
+model AccessToken {
+    id           String    @id @default(uuid())
+    tokenHash    String    @map("token_hash")
+    userId       String    @map("user_id")
+    applicationId String   @map("application_id")
+    ssoSessionId String    @map("sso_session_id")
+    scopes       Json?
+    status       String    @default("active")
+    issuedAt     DateTime  @default(now()) @map("issued_at")
+    expiresAt    DateTime  @map("expires_at")
+    revokedAt    DateTime? @map("revoked_at")
+
+    user        User        @relation(fields: [userId], references: [id], onDelete: Cascade)
+    application Application @relation(fields: [applicationId], references: [id], onDelete: Cascade)
+    ssoSession  SsoSession  @relation(fields: [ssoSessionId], references: [id], onDelete: Cascade)
+
+    @@map("access_tokens")
+}
+
+model Event {
+    id               String    @id @default(uuid())
+    eventType        String    @map("event_type")
+    userId           String    @map("user_id")
+    centralSessionId String?   @map("central_session_id")
+    applicationId    String?   @map("application_id")
+    payload          Json
+    status           String    @default("pending")
+    createdAt        DateTime  @default(now()) @map("created_at")
+    publishedAt      DateTime? @map("published_at")
+
+    user       User           @relation(fields: [userId], references: [id], onDelete: Cascade)
+    ssoSession SsoSession?    @relation(fields: [centralSessionId], references: [id])
+    application Application?  @relation(fields: [applicationId], references: [id])
+    deliveries EventDelivery[]
+
+    @@map("events")
+}
+
+model EventDelivery {
+    id             String    @id @default(uuid())
+    eventId        String    @map("event_id")
+    applicationId  String    @map("application_id")
+    status         String    @default("pending")
+    attemptCount   Int       @default(0) @map("attempt_count")
+    lastAttemptAt  DateTime? @map("last_attempt_at")
+    nextRetryAt    DateTime? @map("next_retry_at")
+    processedAt    DateTime? @map("processed_at")
+    lastError      String?   @map("last_error")
+
+    event       Event       @relation(fields: [eventId], references: [id], onDelete: Cascade)
+    application Application @relation(fields: [applicationId], references: [id], onDelete: Cascade)
+
+    @@map("event_deliveries")
+}
+
+model AuditLog {
+    id            String   @id @default(uuid())
+    eventType     String   @map("event_type")
+    actorId       String?  @map("actor_id")
+    userId        String?  @map("user_id")
+    applicationId String?  @map("application_id")
+    sessionId     String?  @map("session_id")
+    result        String
+    metadata      Json?
+    ipAddress     String?  @map("ip_address")
+    createdAt     DateTime @default(now()) @map("created_at")
+
+    user User? @relation(fields: [userId], references: [id])
+
+    @@map("audit_logs")
+}

@@ -1,0 +1,48 @@
+<h1>Edit Group</h1>
+
+<div class="card">
+  <form method="POST" action="/groups/<%= group.id %>">
+    <div class="form-group">
+      <label>Name</label>
+      <input type="text" name="name" value="<%= group.name %>" required>
+    </div>
+
+    <div class="form-group">
+      <label>Description</label>
+      <textarea name="description" rows="3"><%= group.description || '' %></textarea>
+    </div>
+
+    <div class="form-actions">
+      <button type="submit" class="btn btn-primary">Save Changes</button>
+      <a href="/groups" class="btn btn-secondary">Cancel</a>
+    </div>
+  </form>
+</div>
+
+<% if (group.userGroups && group.userGroups.length > 0) { %>
+  <h2>Members</h2>
+  <table>
+    <thead>
+      <tr>
+        <th>Name</th>
+        <th>Email</th>
+        <th>Status</th>
+      </tr>
+    </thead>
+    <tbody>
+      <% group.userGroups.forEach(ug => { %>
+        <tr>
+          <td><%= ug.user.name %></td>
+          <td><%= ug.user.email %></td>
+          <td>
+            <span class="badge <%= ug.user.status === 'active' ? 'badge-active' : 'badge-inactive' %>">
+              <%= ug.user.status %>
+            </span>
+          </td>
+        </tr>
+      <% }) %>
+    </tbody>
+  </table>
+<% } else { %>
+  <p style="color: #718096;">No members in this group yet.</p>
+<% } %>

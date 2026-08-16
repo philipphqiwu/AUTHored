@@ -18,7 +18,8 @@
   },
   "dependencies": {
     "@prisma/client": "^5.19.0",
-    "effect": "^3.22.1"
+    "effect": "^3.22.1",
+    "express-ejs-layouts": "^2.5.1"
   },
   "devDependencies": {
     "prisma": "^5.19.0"
