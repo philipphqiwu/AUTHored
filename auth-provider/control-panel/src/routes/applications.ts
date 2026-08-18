@@ -79,6 +79,11 @@ router.post('/:id', async (req, res) => {
     try {
         const { name, clientId, status, launchUrl, logoutNotificationUrl, redirectUris, policyGroupIds } = req.body
         
+        const oldPolicies = await prisma.applicationGroupPolicy.findMany({
+            where: { applicationId: req.params.id }
+        })
+        const oldGroupIds = oldPolicies.map(p => p.groupId)
+        
         await prisma.application.update({
             where: { id: req.params.id },
             data: { name, clientId, status, launchUrl, logoutNotificationUrl }
@@ -105,6 +110,49 @@ router.post('/:id', async (req, res) => {
                     effect: 'allow'
                 }))
             })
+        }
+        
+        const removedGroupIds = oldGroupIds.filter(id => !groupIdsArray.includes(id))
+        
+        if (removedGroupIds.length > 0) {
+            const affectedUserGroups = await prisma.userGroup.findMany({
+                where: { groupId: { in: removedGroupIds } },
+                select: { userId: true }
+            })
+            const affectedUserIds = [...new Set(affectedUserGroups.map(ug => ug.userId))]
+            
+            for (const userId of affectedUserIds) {
+                const userGroups = await prisma.userGroup.findMany({
+                    where: { userId },
+                    select: { groupId: true }
+                })
+                const userGroupIds = userGroups.map(ug => ug.groupId)
+                
+                const stillHasAccess = userGroupIds.some(gid => groupIdsArray.includes(gid))
+                
+                if (!stillHasAccess) {
+                    await prisma.ssoSession.updateMany({
+                        where: { userId, status: 'active' },
+                        data: {
+                            status: 'revoked',
+                            revokedAt: new Date(),
+                            revokeReason: 'policy_changed'
+                        }
+                    })
+                    
+                    await prisma.event.create({
+                        data: {
+                            eventType: 'AccessPolicyChanged',
+                            userId,
+                            applicationId: req.params.id,
+                            payload: {
+                                reason: 'policy_changed',
+                                applicationId: req.params.id
+                            }
+                        }
+                    })
+                }
+            }
         }
         
         await prisma.auditLog.create({

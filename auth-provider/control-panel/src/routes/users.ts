@@ -123,6 +123,27 @@ router.post('/:id/toggle', async (req, res) => {
             data: { status: newStatus }
         })
         
+        if (newStatus === 'inactive') {
+            await prisma.ssoSession.updateMany({
+                where: { userId: req.params.id, status: 'active' },
+                data: {
+                    status: 'revoked',
+                    revokedAt: new Date(),
+                    revokeReason: 'user_deactivated'
+                }
+            })
+            
+            await prisma.event.create({
+                data: {
+                    eventType: 'SessionRevoked',
+                    userId: req.params.id,
+                    payload: {
+                        reason: 'user_deactivated'
+                    }
+                }
+            })
+        }
+        
         await prisma.auditLog.create({
             data: {
                 eventType: 'user_status_changed',
