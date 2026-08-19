@@ -9,6 +9,16 @@
     "applications/app-a",
     "applications/app-b"
   ],
+  "scripts": {
+    "dev:start": "./start-dev.sh",
+    "dev:stop": "./stop-dev.sh",
+    "infra:up": "docker-compose -f docker-compose.dev.yml up -d",
+    "infra:down": "docker-compose -f docker-compose.dev.yml down",
+    "infra:logs": "docker-compose -f docker-compose.dev.yml logs -f",
+    "db:migrate": "npm run db:migrate --workspaces --if-present",
+    "db:seed": "npm run db:seed --workspace=@authored/auth-server",
+    "build": "npm run build --workspaces --if-present"
+  },
   "allowScripts": {
     "bcrypt@5.1.1": true,
     "esbuild@0.28.2": true,

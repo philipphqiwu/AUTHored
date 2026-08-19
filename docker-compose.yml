@@ -18,6 +18,8 @@ services:
       interval: 5s
       timeout: 5s
       retries: 5
+    networks:
+      - authored-network
 
   rabbitmq:
     image: rabbitmq:3-management-alpine
@@ -35,7 +37,127 @@ services:
       interval: 5s
       timeout: 5s
       retries: 5
+    networks:
+      - authored-network
+
+  auth-server:
+    build:
+      context: ./auth-provider/server
+      dockerfile: ../../Dockerfile
+    container_name: authored-auth-server
+    environment:
+      PORT: 3000
+      DATABASE_URL: postgresql://postgres:postgres@postgres:5432/auth_db
+      RABBITMQ_URL: amqp://guest:guest@rabbitmq:5672
+      NODE_ENV: production
+    ports:
+      - "3000:3000"
+    depends_on:
+      postgres:
+        condition: service_healthy
+      rabbitmq:
+        condition: service_healthy
+    networks:
+      - authored-network
+    command: sh -c "npx prisma migrate deploy && npm start"
+
+  control-panel:
+    build:
+      context: ./auth-provider/control-panel
+      dockerfile: ../../Dockerfile
+    container_name: authored-control-panel
+    environment:
+      PORT: 3001
+      DATABASE_URL: postgresql://postgres:postgres@postgres:5432/auth_db
+      NODE_ENV: production
+    ports:
+      - "3001:3001"
+    depends_on:
+      postgres:
+        condition: service_healthy
+    networks:
+      - authored-network
+    command: sh -c "npx prisma migrate deploy && npm start"
+
+  app-a:
+    build:
+      context: ./applications/app-a
+      dockerfile: ../../Dockerfile
+    container_name: authored-app-a
+    environment:
+      PORT: 3002
+      DATABASE_URL: postgresql://postgres:postgres@postgres:5432/app_a_db
+      AUTH_PROVIDER_URL: http://auth-server:3000
+      CLIENT_ID: app-a-client-id
+      CLIENT_SECRET: app-a-client-secret
+      REDIRECT_URI: http://localhost:3002/callback
+      SESSION_SECRET: app-a-session-secret-change-in-production
+      INTERNAL_SECRET: shared-secret-change-in-production
+      NODE_ENV: production
+    ports:
+      - "3002:3002"
+    depends_on:
+      postgres:
+        condition: service_healthy
+      auth-server:
+        condition: service_started
+    networks:
+      - authored-network
+    command: sh -c "npx prisma migrate deploy && npm start"
+
+  app-b:
+    build:
+      context: ./applications/app-b
+      dockerfile: ../../Dockerfile
+    container_name: authored-app-b
+    environment:
+      PORT: 3003
+      DATABASE_URL: postgresql://postgres:postgres@postgres:5432/app_b_db
+      AUTH_PROVIDER_URL: http://auth-server:3000
+      CLIENT_ID: app-b-client-id
+      CLIENT_SECRET: app-b-client-secret
+      REDIRECT_URI: http://localhost:3003/callback
+      SESSION_SECRET: app-b-session-secret-change-in-production
+      INTERNAL_SECRET: shared-secret-change-in-production
+      NODE_ENV: production
+    ports:
+      - "3003:3003"
+    depends_on:
+      postgres:
+        condition: service_healthy
+      auth-server:
+        condition: service_started
+    networks:
+      - authored-network
+    command: sh -c "npx prisma migrate deploy && npm start"
+
+  sync-worker:
+    build:
+      context: ./auth-provider/sync-worker
+      dockerfile: ../../Dockerfile
+    container_name: authored-sync-worker
+    environment:
+      DATABASE_URL: postgresql://postgres:postgres@postgres:5432/auth_db
+      RABBITMQ_URL: amqp://guest:guest@rabbitmq:5672
+      INTERNAL_SECRET: shared-secret-change-in-production
+      NODE_ENV: production
+    depends_on:
+      postgres:
+        condition: service_healthy
+      rabbitmq:
+        condition: service_healthy
+      auth-server:
+        condition: service_started
+    networks:
+      - authored-network
+    command: sh -c "npx prisma migrate deploy && npm start"
+    profiles:
+      - sync-worker  # Only run when explicitly requested
 
 volumes:
   postgres_data:
   rabbitmq_data:
+
+networks:
+  authored-network:
+    driver: bridge

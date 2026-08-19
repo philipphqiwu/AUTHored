@@ -5,6 +5,7 @@ datasource db {
 
 generator client {
     provider = "prisma-client-js"
+    output   = "../src/generated/prisma-client"
 }
 
 model LocalSession {
@@ -41,4 +42,17 @@ model ProcessedEvent {
     result      String
 
     @@map("processed_events")
+}
+
+model ActivityLog {
+    id            String   @id @default(uuid())
+    eventType     String   @map("event_type")
+    timestamp     DateTime @default(now())
+    userId        String?  @map("user_id")
+    sessionId     String?  @map("session_id")
+    correlationId String?  @map("correlation_id")
+    metadata      Json?
+    status        String   @default("success")
+
+    @@map("activity_logs")
 }

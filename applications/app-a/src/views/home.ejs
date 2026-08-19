@@ -1,0 +1,129 @@
+<div class="card">
+  <h2>Hello, <%= user.name %>!</h2>
+  <p class="note">Identity from Auth Provider (via profile cache)</p>
+  
+  <div class="info-grid">
+    <div class="info-item">
+      <div class="info-label">Name</div>
+      <div class="info-value"><%= user.name %></div>
+    </div>
+    <div class="info-item">
+      <div class="info-label">Email</div>
+      <div class="info-value"><%= user.email %></div>
+    </div>
+    <div class="info-item">
+      <div class="info-label">User ID</div>
+      <div class="info-value" style="font-size: 0.85rem;"><%= user.externalUserId %></div>
+    </div>
+    <div class="info-item">
+      <div class="info-label">Profile Synced</div>
+      <div class="info-value" style="font-size: 0.85rem;"><%= new Date(user.syncedAt).toLocaleString() %></div>
+    </div>
+  </div>
+</div>
+
+<div class="card">
+  <h2>Local Session Status</h2>
+  
+  <div class="info-grid">
+    <div class="info-item">
+      <div class="info-label">Status</div>
+      <div class="info-value">
+        <span class="badge badge-<%= session.status %>"><%= session.status %></span>
+      </div>
+    </div>
+    <div class="info-item">
+      <div class="info-label">Created</div>
+      <div class="info-value" style="font-size: 0.85rem;"><%= new Date(session.createdAt).toLocaleString() %></div>
+    </div>
+    <div class="info-item">
+      <div class="info-label">Expires</div>
+      <div class="info-value" style="font-size: 0.85rem;"><%= new Date(session.expiresAt).toLocaleString() %></div>
+    </div>
+    <div class="info-item">
+      <div class="info-label">Last Activity</div>
+      <div class="info-value" style="font-size: 0.85rem;">
+        <%= session.lastActivityAt ? new Date(session.lastActivityAt).toLocaleString() : 'N/A' %>
+      </div>
+    </div>
+    <div class="info-item">
+      <div class="info-label">Session ID</div>
+      <div class="info-value" style="font-size: 0.75rem;"><%= session.id %></div>
+    </div>
+    <div class="info-item">
+      <div class="info-label">Central Session Reference</div>
+      <div class="info-value" style="font-size: 0.75rem;"><%= session.centralSessionId.substring(0, 20) %>...</div>
+    </div>
+  </div>
+  
+  <div style="margin-top: 1.5rem;">
+    <form method="POST" action="/logout" style="display: inline;">
+      <button type="submit" class="btn btn-danger">Logout</button>
+    </form>
+    <p class="note">This logs you out of <%= appName %> only. For SSO logout, use the Auth Provider.</p>
+  </div>
+</div>
+
+<div class="card">
+  <h2>Activity Log</h2>
+  <p class="note">Recent events in this application</p>
+  
+  <% if (activities && activities.length > 0) { %>
+    <table>
+      <thead>
+        <tr>
+          <th>Timestamp</th>
+          <th>Event</th>
+          <th>Status</th>
+          <th>Correlation ID</th>
+        </tr>
+      </thead>
+      <tbody>
+        <% activities.forEach(activity => { %>
+          <tr>
+            <td style="font-size: 0.85rem;"><%= new Date(activity.timestamp).toLocaleString() %></td>
+            <td><%= activity.eventType %></td>
+            <td>
+              <span class="badge badge-<%= activity.status === 'success' ? 'active' : 'revoked' %>">
+                <%= activity.status %>
+              </span>
+            </td>
+            <td style="font-size: 0.75rem;"><%= activity.correlationId || '-' %></td>
+          </tr>
+        <% }) %>
+      </tbody>
+    </table>
+  <% } else { %>
+    <p style="color: #718096; margin-top: 1rem;">No activity recorded yet.</p>
+  <% } %>
+</div>
+
+<div class="card">
+  <h2>Processed Events</h2>
+  <p class="note">Events from Auth Provider (via Sync Worker)</p>
+  
+  <% if (processedEvents && processedEvents.length > 0) { %>
+    <table>
+      <thead>
+        <tr>
+          <th>Event ID</th>
+          <th>Event Type</th>
+          <th>Processed At</th>
+          <th>Action Taken</th>
+        </tr>
+      </thead>
+      <tbody>
+        <% processedEvents.forEach(event => { %>
+          <tr>
+            <td style="font-size: 0.75rem;"><%= event.eventId %></td>
+            <td><%= event.eventType %></td>
+            <td style="font-size: 0.85rem;"><%= new Date(event.processedAt).toLocaleString() %></td>
+            <td><%= event.result %></td>
+          </tr>
+        <% }) %>
+      </tbody>
+    </table>
+  <% } else { %>
+    <p style="color: #718096; margin-top: 1rem;">No processed events yet.</p>
+  <% } %>
+</div>

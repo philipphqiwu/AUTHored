@@ -12,6 +12,7 @@ build/
 
 # Prisma
 prisma/migrations/
+**/src/generated/
 
 # IDE
 .vscode/

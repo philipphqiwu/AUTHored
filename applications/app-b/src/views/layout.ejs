@@ -1,0 +1,128 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title><%= title || 'App A' %></title>
+  <style>
+    * { margin: 0; padding: 0; box-sizing: border-box; }
+    body {
+      font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, sans-serif;
+      background: #f5f7fa;
+      color: #333;
+      line-height: 1.6;
+    }
+    .container {
+      max-width: 1200px;
+      margin: 0 auto;
+      padding: 2rem;
+    }
+    .app-header {
+      background: #2d3748;
+      color: #fff;
+      padding: 1.5rem 2rem;
+      margin-bottom: 2rem;
+    }
+    .app-header h1 {
+      font-size: 2rem;
+      font-weight: 700;
+    }
+    .card {
+      background: #fff;
+      border-radius: 8px;
+      padding: 1.5rem;
+      box-shadow: 0 1px 3px rgba(0,0,0,0.1);
+      margin-bottom: 1.5rem;
+    }
+    .card h2 {
+      font-size: 1.25rem;
+      margin-bottom: 1rem;
+      color: #2d3748;
+    }
+    .badge {
+      display: inline-block;
+      padding: 0.25rem 0.75rem;
+      border-radius: 12px;
+      font-size: 0.85rem;
+      font-weight: 600;
+    }
+    .badge-active { background: #c6f6d5; color: #276749; }
+    .badge-expired { background: #feebc8; color: #c05621; }
+    .badge-revoked { background: #fed7d7; color: #9b2c2c; }
+    table {
+      width: 100%;
+      border-collapse: collapse;
+      margin-top: 1rem;
+    }
+    th, td {
+      text-align: left;
+      padding: 0.75rem;
+      border-bottom: 1px solid #e2e8f0;
+    }
+    th {
+      background: #f7fafc;
+      font-weight: 600;
+      color: #4a5568;
+    }
+    button, .btn {
+      padding: 0.5rem 1rem;
+      border: none;
+      border-radius: 4px;
+      font-size: 0.9rem;
+      cursor: pointer;
+      text-decoration: none;
+      display: inline-block;
+    }
+    .btn-primary {
+      background: #3182ce;
+      color: #fff;
+    }
+    .btn-primary:hover {
+      background: #2b6cb0;
+    }
+    .btn-danger {
+      background: #e53e3e;
+      color: #fff;
+    }
+    .btn-danger:hover {
+      background: #c53030;
+    }
+    .info-grid {
+      display: grid;
+      grid-template-columns: repeat(auto-fit, minmax(200px, 1fr));
+      gap: 1rem;
+      margin-top: 1rem;
+    }
+    .info-item {
+      padding: 1rem;
+      background: #f7fafc;
+      border-radius: 4px;
+    }
+    .info-label {
+      font-size: 0.85rem;
+      color: #718096;
+      margin-bottom: 0.25rem;
+    }
+    .info-value {
+      font-size: 1rem;
+      font-weight: 600;
+      color: #2d3748;
+    }
+    .note {
+      font-size: 0.85rem;
+      color: #718096;
+      margin-top: 0.5rem;
+      font-style: italic;
+    }
+  </style>
+</head>
+<body>
+  <div class="app-header">
+    <h1><%= typeof appName !== 'undefined' ? appName : 'APP A' %></h1>
+  </div>
+  
+  <div class="container">
+    <%- body %>
+  </div>
+</body>
+</html>
