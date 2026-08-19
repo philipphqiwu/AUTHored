@@ -56,11 +56,17 @@
     </div>
   </div>
   
-  <div style="margin-top: 1.5rem;">
+  <div style="margin-top: 1.5rem; display: flex; gap: 0.75rem; flex-wrap: wrap;">
+    <a href="<%= process.env.AUTH_PROVIDER_URL %>/password/change" class="btn btn-primary">Change Password</a>
     <form method="POST" action="/logout" style="display: inline;">
-      <button type="submit" class="btn btn-danger">Logout</button>
+      <button type="submit" class="btn btn-danger">Logout (Local)</button>
     </form>
-    <p class="note">This logs you out of <%= appName %> only. For SSO logout, use the Auth Provider.</p>
+    <a href="/sso-logout" class="btn btn-secondary">Logout (SSO)</a>
+  </div>
+  <div style="margin-top: 0.75rem;">
+    <p class="note">• <strong>Change Password:</strong> Update your password (logs you out of all apps)</p>
+    <p class="note">• <strong>Logout (Local):</strong> Logout from <%= appName %> only</p>
+    <p class="note">• <strong>Logout (SSO):</strong> Logout from all apps</p>
   </div>
 </div>
 

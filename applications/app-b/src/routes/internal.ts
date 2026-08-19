@@ -1,6 +1,7 @@
 import { Router, Request, Response } from 'express'
 import prisma from '../utils/prisma.js'
 import { logActivity } from '../utils/activity.js'
+import { verifyHmacSignature } from '../utils/hmac.js'
 
 const router = Router()
 
@@ -8,15 +9,28 @@ const INTERNAL_SECRET = process.env.INTERNAL_SECRET || 'shared-secret-change-in-
 
 router.post('/logout', async (req: Request, res: Response) => {
   try {
-    const authHeader = req.headers.authorization
+    const signature = req.headers['x-signature'] as string
     
-    if (!authHeader || authHeader !== `Bearer ${INTERNAL_SECRET}`) {
+    if (!signature) {
       await logActivity('backchannel_logout_failed', {
-        reason: 'invalid_secret'
+        reason: 'missing_signature'
       }, { status: 'error' })
       
       return res.status(401).json({
-        error: { code: 'UNAUTHORIZED', message: 'Invalid authorization' }
+        error: { code: 'UNAUTHORIZED', message: 'Missing signature' }
+      })
+    }
+    
+    const payload = JSON.stringify(req.body)
+    const isValid = verifyHmacSignature(payload, signature, INTERNAL_SECRET)
+    
+    if (!isValid) {
+      await logActivity('backchannel_logout_failed', {
+        reason: 'invalid_signature'
+      }, { status: 'error' })
+      
+      return res.status(401).json({
+        error: { code: 'UNAUTHORIZED', message: 'Invalid signature' }
       })
     }
     

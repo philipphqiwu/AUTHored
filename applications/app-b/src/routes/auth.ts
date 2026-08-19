@@ -232,4 +232,46 @@ router.post('/logout', async (req: Request, res: Response) => {
   }
 })
 
+router.get('/sso-logout', async (req: Request, res: Response) => {
+  try {
+    const sessionToken = req.cookies.local_session
+    
+    if (sessionToken) {
+      const sessionTokenHash = hashToken(sessionToken)
+      const session = await prisma.localSession.findFirst({
+        where: { sessionTokenHash, status: 'active' }
+      })
+      
+      if (session) {
+        await prisma.localSession.update({
+          where: { id: session.id },
+          data: {
+            status: 'revoked',
+            revokedAt: new Date(),
+            revokeReason: 'sso_logout'
+          }
+        })
+        
+        await logActivity('sso_logout_initiated', {
+          sessionId: session.id
+        }, {
+          userId: session.externalUserId,
+          sessionId: session.id
+        })
+      }
+    }
+    
+    res.clearCookie('local_session')
+    
+    const authProviderUrl = process.env.AUTH_PROVIDER_URL || 'http://localhost:3000'
+    const redirectUri = `${req.protocol}://${req.get('host')}/login`
+    
+    res.redirect(`${authProviderUrl}/logout?redirect_uri=${encodeURIComponent(redirectUri)}`)
+  } catch (error) {
+    console.error('SSO logout error:', error)
+    res.clearCookie('local_session')
+    res.redirect('/login')
+  }
+})
+
 export default router

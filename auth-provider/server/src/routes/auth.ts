@@ -237,9 +237,18 @@ router.post('/password/change', async (req: Request, res: Response) => {
   }
 })
 
+router.get('/logout', (req: Request, res: Response) => {
+  const redirectUri = req.query.redirect_uri as string
+  res.render('logout-confirm', { 
+    title: 'Logout',
+    redirect_uri: redirectUri 
+  })
+})
+
 router.post('/logout', async (req: Request, res: Response) => {
   try {
     const sessionToken = req.cookies.sso_session
+    const redirectUri = req.body.redirect_uri || req.query.redirect_uri
     
     if (sessionToken) {
       const sessionTokenHash = hashToken(sessionToken)
@@ -283,6 +292,11 @@ router.post('/logout', async (req: Request, res: Response) => {
     }
     
     res.clearCookie('sso_session')
+    
+    if (redirectUri) {
+      return res.redirect(redirectUri)
+    }
+    
     res.redirect('/login')
   } catch (error) {
     console.error('Logout error:', error)
