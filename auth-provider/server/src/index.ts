@@ -7,6 +7,7 @@ import { dirname } from 'path'
 
 import authRoutes from './routes/auth.js'
 import oauthRoutes from './routes/oauth.js'
+import { connect as connectEventPublisher, startPolling } from './utils/eventPublisher.js'
 
 const app = express()
 const PORT = process.env.PORT || 3000
@@ -27,6 +28,9 @@ app.get('/', (req, res) => {
   res.json({ status: 'ok', service: 'Auth Provider Server' })
 })
 
-app.listen(PORT, () => {
+app.listen(PORT, async () => {
   console.log(`Auth Server running on http://localhost:${PORT}`)
+  
+  await connectEventPublisher()
+  startPolling()
 })

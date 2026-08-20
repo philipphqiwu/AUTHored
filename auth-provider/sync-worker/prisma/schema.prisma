@@ -1,0 +1,51 @@
+datasource db {
+    provider = "postgresql"
+    url      = env("DATABASE_URL")
+}
+
+generator client {
+    provider = "prisma-client-js"
+    output   = "../src/generated/prisma-client"
+}
+
+model Event {
+    id               String    @id @default(uuid())
+    eventType        String    @map("event_type")
+    userId           String    @map("user_id")
+    centralSessionId String?   @map("central_session_id")
+    applicationId    String?   @map("application_id")
+    payload          Json
+    status           String    @default("pending")
+    createdAt        DateTime  @default(now()) @map("created_at")
+    publishedAt      DateTime? @map("published_at")
+
+    @@map("events")
+}
+
+model EventDelivery {
+    id             String    @id @default(uuid())
+    eventId        String    @map("event_id")
+    applicationId  String    @map("application_id")
+    status         String    @default("pending")
+    attemptCount   Int       @default(0) @map("attempt_count")
+    lastAttemptAt  DateTime? @map("last_attempt_at")
+    nextRetryAt    DateTime? @map("next_retry_at")
+    processedAt    DateTime? @map("processed_at")
+    lastError      String?   @map("last_error")
+
+    @@map("event_deliveries")
+}
+
+model Application {
+    id                    String   @id @default(uuid())
+    name                  String
+    clientId              String   @unique @map("client_id")
+    clientSecretHash      String?  @map("client_secret_hash")
+    status                String   @default("active")
+    launchUrl             String?  @map("launch_url")
+    logoutNotificationUrl String   @map("logout_notification_url")
+    createdAt             DateTime @default(now()) @map("created_at")
+    updatedAt             DateTime @updatedAt @map("updated_at")
+
+    @@map("applications")
+}
