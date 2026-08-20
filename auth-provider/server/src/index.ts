@@ -9,10 +9,12 @@ import authRoutes from './routes/auth.js'
 import oauthRoutes from './routes/oauth.js'
 import healthRoutes from './routes/health.js'
 import mfaRoutes from './routes/mfa.js'
+import metricsRoutes from './routes/metrics.js'
 import { connect as connectEventPublisher, startPolling, disconnect as disconnectEventPublisher } from './utils/eventPublisher.js'
 import prisma from './utils/prisma.js'
 import { hashToken } from './utils/crypto.js'
 import { errorHandler, notFoundHandler } from './middleware/errorHandler.js'
+import { httpMetricsMiddleware, activeSsoSessions, activeAccessTokens } from './utils/metrics.js'
 
 const app = express()
 const PORT = process.env.PORT || 3000
@@ -25,7 +27,9 @@ app.set('views', path.join(__dirname, 'views'))
 app.use(express.json())
 app.use(express.urlencoded({ extended: true }))
 app.use(cookieParser())
+app.use(httpMetricsMiddleware)
 
+app.use('/', metricsRoutes)
 app.use('/', healthRoutes)
 app.use('/', authRoutes)
 app.use('/', oauthRoutes)
@@ -57,6 +61,15 @@ const server = app.listen(PORT, async () => {
   
   await connectEventPublisher()
   startPolling()
+
+  setInterval(async () => {
+    try {
+      const sessions = await prisma.ssoSession.count({ where: { status: 'active' } })
+      activeSsoSessions.set(sessions)
+      const tokens = await prisma.accessToken.count({ where: { status: 'active' } })
+      activeAccessTokens.set(tokens)
+    } catch {}
+  }, 15000)
 })
 
 const shutdown = async (signal: string) => {

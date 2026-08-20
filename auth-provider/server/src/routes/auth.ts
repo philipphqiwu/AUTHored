@@ -3,6 +3,7 @@ import bcrypt from 'bcrypt'
 import prisma from '../utils/prisma.js'
 import { generateToken, hashToken } from '../utils/crypto.js'
 import { loginLimiter } from '../middleware/rateLimit.js'
+import { loginAttemptsTotal } from '../utils/metrics.js'
 
 const router = Router()
 
@@ -52,6 +53,7 @@ router.post('/login', loginLimiter, async (req: Request, res: Response) => {
     const user = await prisma.user.findUnique({ where: { email } })
     
     if (!user) {
+      loginAttemptsTotal.inc({ result: 'failure' })
       await prisma.auditLog.create({
         data: {
           eventType: 'login_failed',
@@ -70,6 +72,7 @@ router.post('/login', loginLimiter, async (req: Request, res: Response) => {
     const validPassword = await bcrypt.compare(password, user.passwordHash)
     
     if (!validPassword) {
+      loginAttemptsTotal.inc({ result: 'failure' })
       await prisma.auditLog.create({
         data: {
           eventType: 'login_failed',
@@ -87,6 +90,7 @@ router.post('/login', loginLimiter, async (req: Request, res: Response) => {
     }
     
     if (user.status !== 'active') {
+      loginAttemptsTotal.inc({ result: 'failure' })
       await prisma.auditLog.create({
         data: {
           eventType: 'login_failed',
@@ -137,6 +141,8 @@ router.post('/login', loginLimiter, async (req: Request, res: Response) => {
       maxAge: 24 * 60 * 60 * 1000
     })
     
+    loginAttemptsTotal.inc({ result: 'success' })
+
     await prisma.auditLog.create({
       data: {
         eventType: 'login_success',

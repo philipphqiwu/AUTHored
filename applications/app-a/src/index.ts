@@ -8,6 +8,7 @@ import { dirname } from 'path'
 
 import routes from './routes/index.js'
 import healthRoutes from './routes/health.js'
+import metricsRoutes, { httpMetricsMiddleware } from './routes/metrics.js'
 import { errorHandler, notFoundHandler } from './middleware/errorHandler.js'
 import prisma from './utils/prisma.js'
 
@@ -24,7 +25,9 @@ app.use(expressLayouts)
 app.use(express.json())
 app.use(express.urlencoded({ extended: true }))
 app.use(cookieParser())
+app.use(httpMetricsMiddleware)
 
+app.use('/', metricsRoutes)
 app.use('/', healthRoutes)
 app.use('/', routes)
 

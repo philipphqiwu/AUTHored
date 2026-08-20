@@ -6,6 +6,7 @@ import crypto from 'crypto'
 import prisma from '../utils/prisma.js'
 import { generateToken, hashToken } from '../utils/crypto.js'
 import { loginLimiter } from '../middleware/rateLimit.js'
+import { mfaVerificationsTotal } from '../utils/metrics.js'
 
 const router = Router()
 
@@ -222,6 +223,8 @@ router.post('/mfa/verify', loginLimiter, async (req: Request, res: Response) => 
           data: { usedAt: new Date() }
         })
 
+        mfaVerificationsTotal.inc({ method: 'recovery_code', result: 'success' })
+
         await prisma.auditLog.create({
           data: {
             eventType: 'mfa_recovery_code_used',
@@ -235,6 +238,7 @@ router.post('/mfa/verify', loginLimiter, async (req: Request, res: Response) => 
     }
 
     if (!verified) {
+      mfaVerificationsTotal.inc({ method: 'recovery_code', result: 'failure' })
       return res.render('mfa-verify', {
         title: 'Verify MFA',
         error: 'Invalid recovery code',
@@ -250,6 +254,7 @@ router.post('/mfa/verify', loginLimiter, async (req: Request, res: Response) => 
     })
 
     if (!verified) {
+      mfaVerificationsTotal.inc({ method: 'totp', result: 'failure' })
       await prisma.auditLog.create({
         data: {
           eventType: 'mfa_verification_failed',
@@ -265,6 +270,8 @@ router.post('/mfa/verify', loginLimiter, async (req: Request, res: Response) => 
         useRecoveryCode: false
       })
     }
+
+    mfaVerificationsTotal.inc({ method: 'totp', result: 'success' })
 
     await prisma.auditLog.create({
       data: {

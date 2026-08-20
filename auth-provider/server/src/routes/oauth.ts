@@ -2,6 +2,7 @@ import { Router, Request, Response } from 'express'
 import bcrypt from 'bcrypt'
 import prisma from '../utils/prisma.js'
 import { generateToken, hashToken, verifyCodeChallenge, generateRandomString } from '../utils/crypto.js'
+import { authorizationCodesIssued } from '../utils/metrics.js'
 
 const router = Router()
 
@@ -124,6 +125,8 @@ router.get('/authorize', async (req: Request, res: Response) => {
         expiresAt
       }
     })
+
+    authorizationCodesIssued.inc()
     
     await prisma.auditLog.create({
       data: {

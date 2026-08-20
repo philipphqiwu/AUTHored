@@ -1,5 +1,6 @@
 import amqp from 'amqplib'
 import prisma from '../utils/prisma.js'
+import { eventsPublishedTotal } from '../utils/metrics.js'
 
 const RABBITMQ_URL = process.env.RABBITMQ_URL || 'amqp://guest:guest@localhost:5672'
 const EXCHANGE_NAME = 'auth_events'
@@ -44,6 +45,7 @@ export async function publishEvent(event: any): Promise<boolean> {
       contentType: 'application/json'
     })
     
+    eventsPublishedTotal.inc({ event_type: event.eventType })
     console.log(`Event published: ${event.eventType} (${event.id})`)
     return true
   } catch (error) {

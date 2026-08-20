@@ -1,0 +1,104 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8">
+  <title><%= title || 'Metrics Dashboard' %></title>
+  <style>
+    * { margin: 0; padding: 0; box-sizing: border-box; }
+    body { font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', sans-serif; background: #f5f7fa; }
+    .container { max-width: 1000px; margin: 0 auto; padding: 2rem; }
+    .header { display: flex; justify-content: space-between; align-items: center; margin-bottom: 2rem; }
+    h1 { font-size: 1.75rem; }
+    .nav a { color: #3182ce; text-decoration: none; margin-left: 1rem; }
+    .nav a:hover { text-decoration: underline; }
+    .grid { display: grid; grid-template-columns: repeat(auto-fit, minmax(280px, 1fr)); gap: 1.5rem; margin-bottom: 2rem; }
+    .card { background: #fff; border-radius: 8px; padding: 1.5rem; box-shadow: 0 2px 8px rgba(0,0,0,0.08); }
+    .card h2 { font-size: 1.1rem; color: #4a5568; margin-bottom: 1rem; padding-bottom: 0.5rem; border-bottom: 2px solid #e2e8f0; }
+    .metric { display: flex; justify-content: space-between; padding: 0.5rem 0; border-bottom: 1px solid #f7fafc; }
+    .metric:last-child { border-bottom: none; }
+    .metric-label { color: #718096; font-size: 0.9rem; }
+    .metric-value { font-weight: 600; color: #2d3748; font-family: monospace; }
+    .status-ok { color: #38a169; }
+    .status-warn { color: #d69e2e; }
+    .status-error { color: #e53e3e; }
+    .auto-refresh { font-size: 0.85rem; color: #a0aec0; margin-top: 1rem; text-align: center; }
+  </style>
+</head>
+<body>
+  <div class="container">
+    <div class="header">
+      <h1>Metrics Dashboard</h1>
+      <div class="nav">
+        <a href="/users">Users</a>
+        <a href="/groups">Groups</a>
+        <a href="/applications">Applications</a>
+        <a href="/metrics">Metrics</a>
+      </div>
+    </div>
+
+    <div class="grid">
+      <div class="card">
+        <h2>Auth Server</h2>
+        <div class="metric">
+          <span class="metric-label">Uptime</span>
+          <span class="metric-value"><%= dashboard.authServer.uptime %>s</span>
+        </div>
+        <div class="metric">
+          <span class="metric-label">Active Sessions</span>
+          <span class="metric-value"><%= dashboard.authServer.activeSessions %></span>
+        </div>
+        <div class="metric">
+          <span class="metric-label">Active Tokens</span>
+          <span class="metric-value"><%= dashboard.authServer.activeTokens %></span>
+        </div>
+        <div class="metric">
+          <span class="metric-label">Login Attempts</span>
+          <span class="metric-value"><%= dashboard.authServer.loginAttempts %></span>
+        </div>
+        <div class="metric">
+          <span class="metric-label">MFA Verifications</span>
+          <span class="metric-value"><%= dashboard.authServer.mfaVerifications %></span>
+        </div>
+        <div class="metric">
+          <span class="metric-label">Auth Codes Issued</span>
+          <span class="metric-value"><%= dashboard.authServer.authCodesIssued %></span>
+        </div>
+        <div class="metric">
+          <span class="metric-label">Events Published</span>
+          <span class="metric-value"><%= dashboard.authServer.eventsPublished %></span>
+        </div>
+      </div>
+
+      <div class="card">
+        <h2>App A</h2>
+        <div class="metric">
+          <span class="metric-label">Uptime</span>
+          <span class="metric-value"><%= dashboard.appA.uptime %>s</span>
+        </div>
+        <div class="metric">
+          <span class="metric-label">HTTP Requests</span>
+          <span class="metric-value"><%= dashboard.appA.httpRequests %></span>
+        </div>
+      </div>
+
+      <div class="card">
+        <h2>App B</h2>
+        <div class="metric">
+          <span class="metric-label">Uptime</span>
+          <span class="metric-value"><%= dashboard.appB.uptime %>s</span>
+        </div>
+        <div class="metric">
+          <span class="metric-label">HTTP Requests</span>
+          <span class="metric-value"><%= dashboard.appB.httpRequests %></span>
+        </div>
+      </div>
+    </div>
+
+    <p class="auto-refresh">Auto-refreshes every 30 seconds</p>
+  </div>
+
+  <script>
+    setTimeout(() => location.reload(), 30000)
+  </script>
+</body>
+</html>
