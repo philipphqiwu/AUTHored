@@ -7,6 +7,7 @@ const prisma = new PrismaClient()
 const RABBITMQ_URL = process.env.RABBITMQ_URL || 'amqp://guest:guest@localhost:5672'
 const EXCHANGE_NAME = 'auth_events'
 const QUEUE_NAME = 'sync_worker_queue'
+const DEAD_LETTER_QUEUE = 'sync_worker_dlq'
 const INTERNAL_SECRET = process.env.INTERNAL_SECRET || 'shared-secret-change-in-production'
 const MAX_RETRIES = 5
 const BASE_DELAY = 1000 // 1 second
@@ -32,6 +33,7 @@ async function connect(): Promise<void> {
     
     await channel!.assertExchange(EXCHANGE_NAME, 'topic', { durable: true })
     await channel!.assertQueue(QUEUE_NAME, { durable: true })
+    await channel!.assertQueue(DEAD_LETTER_QUEUE, { durable: true })
     
     await channel!.bindQueue(QUEUE_NAME, EXCHANGE_NAME, 'sessionrevoked')
     await channel!.bindQueue(QUEUE_NAME, EXCHANGE_NAME, 'passwordchanged')
@@ -44,11 +46,13 @@ async function connect(): Promise<void> {
   }
 }
 
-async function notifyApp(application: any, userId: string, sessionId: string | null, reason: string): Promise<boolean> {
+async function notifyApp(application: any, event: any, reason: string): Promise<boolean> {
   try {
     const payload = JSON.stringify({
-      userId,
-      sessionId,
+      eventId: event.id,
+      eventType: event.eventType,
+      userId: event.userId,
+      sessionId: event.centralSessionId,
       reason,
       timestamp: new Date().toISOString()
     })
@@ -68,7 +72,7 @@ async function notifyApp(application: any, userId: string, sessionId: string | n
       throw new Error(`HTTP ${response.status}: ${response.statusText}`)
     }
     
-    console.log(`Notified ${application.name} for user ${userId}`)
+    console.log(`Notified ${application.name} for user ${event.userId}`)
     return true
   } catch (error) {
     console.error(`Failed to notify ${application.name}:`, error)
@@ -76,75 +80,80 @@ async function notifyApp(application: any, userId: string, sessionId: string | n
   }
 }
 
-async function processEvent(event: any): Promise<void> {
-  console.log(`Processing event: ${event.eventType} (${event.id})`)
-  
-  const payload = event.payload as any
-  
-  if (event.eventType === 'SessionRevoked') {
-    const applications = await prisma.application.findMany({
-      where: { status: 'active' }
+function delay(milliseconds: number): Promise<void> {
+  return new Promise(resolve => setTimeout(resolve, milliseconds))
+}
+
+async function deliverEvent(event: any, application: any, reason: string): Promise<boolean> {
+  let delivery = await prisma.eventDelivery.findFirst({
+    where: { eventId: event.id, applicationId: application.id }
+  })
+
+  if (!delivery) {
+    delivery = await prisma.eventDelivery.create({
+      data: { eventId: event.id, applicationId: application.id }
     })
-    
-    for (const app of applications) {
-      let delivery = await prisma.eventDelivery.findFirst({
-        where: {
-          eventId: event.id,
-          applicationId: app.id
-        }
-      })
-      
-      if (!delivery) {
-        delivery = await prisma.eventDelivery.create({
-          data: {
-            eventId: event.id,
-            applicationId: app.id,
-            status: 'pending',
-            attemptCount: 0
-          }
-        })
-      }
-      
-      if (delivery.status === 'completed') {
-        continue
-      }
-      
-      if (delivery.attemptCount >= MAX_RETRIES) {
-        console.log(`Max retries reached for event ${event.id} to ${app.name}`)
-        continue
-      }
-      
-      if (delivery.nextRetryAt && delivery.nextRetryAt > new Date()) {
-        continue
-      }
-      
-      const success = await notifyApp(
-        app,
-        event.userId,
-        event.centralSessionId,
-        payload.reason || 'session_revoked'
-      )
-      
-      await prisma.eventDelivery.update({
-        where: { id: delivery.id },
-        data: {
-          attemptCount: delivery.attemptCount + 1,
-          lastAttemptAt: new Date(),
-          status: success ? 'completed' : 'failed',
-          processedAt: success ? new Date() : null,
-          lastError: success ? null : 'Notification failed',
-          nextRetryAt: success ? null : new Date(Date.now() + calculateBackoff(delivery.attemptCount + 1))
-        }
-      })
-    }
   }
-  
+
+  if (delivery.status === 'completed') return true
+
+  for (let attempt = delivery.attemptCount + 1; attempt <= MAX_RETRIES; attempt++) {
+    if (attempt > 1) await delay(calculateBackoff(attempt - 1))
+
+    const success = await notifyApp(application, event, reason)
+    const nextRetryAt = success || attempt === MAX_RETRIES
+      ? null
+      : new Date(Date.now() + calculateBackoff(attempt))
+
+    await prisma.eventDelivery.update({
+      where: { id: delivery.id },
+      data: {
+        attemptCount: attempt,
+        lastAttemptAt: new Date(),
+        status: success ? 'completed' : 'failed',
+        processedAt: success ? new Date() : null,
+        lastError: success ? null : 'Notification failed',
+        nextRetryAt
+      }
+    })
+
+    if (success) return true
+  }
+
+  return false
+}
+
+async function processEvent(event: any): Promise<boolean> {
+  console.log(`Processing event: ${event.eventType} (${event.id})`)
+  const payload = event.payload as any
+  let applications: any[] = []
+  let reason = payload.reason || event.eventType.toLowerCase()
+
+  if (event.eventType === 'SessionRevoked' || event.eventType === 'PasswordChanged') {
+    applications = await prisma.application.findMany()
+  } else if (event.eventType === 'AccessPolicyChanged') {
+    const applicationId = payload.applicationId || event.applicationId
+    if (!applicationId) throw new Error('AccessPolicyChanged event is missing applicationId')
+
+    const application = await prisma.application.findUnique({ where: { id: applicationId } })
+    if (!application) throw new Error(`Application ${applicationId} was not found`)
+    applications = [application]
+  } else {
+    throw new Error(`Unsupported event type: ${event.eventType}`)
+  }
+
+  const results = await Promise.all(
+    applications.map(application => deliverEvent(event, application, reason))
+  )
+  const completed = results.every(Boolean)
+
   await prisma.event.update({
     where: { id: event.id },
-    data: { status: 'processed' }
+    data: { status: completed ? 'processed' : 'failed' }
   })
-  
-  console.log(`Event ${event.id} processed`)
+
+  console.log(`Event ${event.id} ${completed ? 'processed' : 'failed'}`)
+  return completed
 }
 
 async function startConsuming(): Promise<void> {
@@ -162,11 +171,23 @@ async function startConsuming(): Promise<void> {
     
     try {
       const event = JSON.parse(msg.content.toString())
-      await processEvent(event)
-      channel!.ack(msg)
+      const completed = await processEvent(event)
+      if (completed) {
+        channel!.ack(msg)
+      } else {
+        channel!.sendToQueue(DEAD_LETTER_QUEUE, msg.content, {
+          persistent: true,
+          contentType: 'application/json'
+        })
+        channel!.ack(msg)
+      }
     } catch (error) {
       console.error('Error processing message:', error)
-      channel!.nack(msg, false, false)
+      channel!.sendToQueue(DEAD_LETTER_QUEUE, msg.content, {
+        persistent: true,
+        contentType: 'application/json'
+      })
+      channel!.ack(msg)
     }
   })
 }
@@ -177,13 +198,16 @@ async function main(): Promise<void> {
   await connect()
   await startConsuming()
   
-  process.on('SIGINT', async () => {
-    console.log('Sync Worker shutting down...')
+  const shutdown = async (signal: string) => {
+    console.log(`Sync Worker received ${signal}, shutting down gracefully...`)
     if (channel) await (channel as any).close()
     if (connection) await (connection as any).close()
     await prisma.$disconnect()
     process.exit(0)
-  })
+  }
+  
+  process.on('SIGTERM', () => shutdown('SIGTERM'))
+  process.on('SIGINT', () => shutdown('SIGINT'))
 }
 
 main().catch(console.error)
