@@ -7,6 +7,9 @@ const prisma = new PrismaClient()
 async function main() {
   console.log('Starting seed...')
 
+  const appALogoutUrl = process.env.APP_A_LOGOUT_URL || 'http://localhost:3002/internal/logout'
+  const appBLogoutUrl = process.env.APP_B_LOGOUT_URL || 'http://localhost:3003/internal/logout'
+
   // Hash password for test users
   const passwordHash = await bcrypt.hash('password123', 10)
 
@@ -106,27 +109,27 @@ async function main() {
   // Create applications
   const appA = await prisma.application.upsert({
     where: { clientId: 'app-a-client-id' },
-    update: {},
+    update: { logoutNotificationUrl: appALogoutUrl },
     create: {
       name: 'App A',
       clientId: 'app-a-client-id',
       clientSecretHash: await bcrypt.hash('app-a-client-secret', 10),
       status: 'active',
       launchUrl: 'http://localhost:3002',
-      logoutNotificationUrl: 'http://localhost:3002/internal/logout'
+      logoutNotificationUrl: appALogoutUrl
     }
   })
 
   const appB = await prisma.application.upsert({
     where: { clientId: 'app-b-client-id' },
-    update: {},
+    update: { logoutNotificationUrl: appBLogoutUrl },
     create: {
       name: 'App B',
       clientId: 'app-b-client-id',
       clientSecretHash: await bcrypt.hash('app-b-client-secret', 10),
       status: 'active',
       launchUrl: 'http://localhost:3003',
-      logoutNotificationUrl: 'http://localhost:3003/internal/logout'
+      logoutNotificationUrl: appBLogoutUrl
     }
   })
 
