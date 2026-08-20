@@ -1,4 +1,5 @@
 import { Router, Request, Response } from 'express'
+import bcrypt from 'bcrypt'
 import prisma from '../utils/prisma.js'
 import { generateToken, hashToken, verifyCodeChallenge, generateRandomString } from '../utils/crypto.js'
 
@@ -74,6 +75,11 @@ router.get('/authorize', async (req: Request, res: Response) => {
       const loginUrl = `/login?redirect_uri=${encodeURIComponent(req.originalUrl)}`
       return res.redirect(loginUrl)
     }
+    
+    await prisma.ssoSession.update({
+      where: { id: session.id },
+      data: { lastActivityAt: new Date() }
+    })
     
     const userGroups = await prisma.userGroup.findMany({
       where: { userId: session.userId },
@@ -174,7 +180,6 @@ router.post('/token', async (req: Request, res: Response) => {
       })
     }
     
-    const bcrypt = await import('bcrypt')
     const validSecret = await bcrypt.compare(client_secret, application.clientSecretHash)
     
     if (!validSecret) {
@@ -324,7 +329,7 @@ router.get('/userinfo', async (req: Request, res: Response) => {
       where: { id: token.ssoSessionId, status: 'active' }
     })
     
-    if (!session) {
+    if (!session || session.expiresAt < new Date()) {
       return res.status(401).json({ 
         error: { code: 'SESSION_INVALID', message: 'Session no longer valid' } 
       })
@@ -334,7 +339,8 @@ router.get('/userinfo', async (req: Request, res: Response) => {
       sub: token.user.id,
       name: token.user.name,
       email: token.user.email,
-      email_verified: true
+      email_verified: true,
+      central_session_id: token.ssoSessionId
     })
   } catch (error) {
     console.error('Userinfo error:', error)

@@ -50,6 +50,8 @@ model UserGroup {
     group Group @relation(fields: [groupId], references: [id], onDelete: Cascade)
 
     @@unique([userId, groupId])
+    @@index([userId])
+    @@index([groupId])
     @@map("user_groups")
 }
 
@@ -81,6 +83,7 @@ model ApplicationRedirectUri {
     createdAt     DateTime    @default(now()) @map("created_at")
     application   Application @relation(fields: [applicationId], references: [id], onDelete: Cascade)
 
+    @@index([applicationId])
     @@map("application_redirect_uris")
 }
 
@@ -95,6 +98,8 @@ model ApplicationGroupPolicy {
     group       Group       @relation(fields: [groupId], references: [id], onDelete: Cascade)
 
     @@unique([applicationId, groupId, effect])
+    @@index([applicationId])
+    @@index([groupId])
     @@map("application_group_policies")
 }
 
@@ -116,6 +121,9 @@ model SsoSession {
     accessTokens     AccessToken[]
     events           Event[]
 
+    @@index([userId])
+    @@index([sessionTokenHash])
+    @@index([status])
     @@map("sso_sessions")
 }
 
@@ -136,6 +144,10 @@ model AuthorizationCode {
     application Application @relation(fields: [applicationId], references: [id], onDelete: Cascade)
     ssoSession  SsoSession  @relation(fields: [ssoSessionId], references: [id], onDelete: Cascade)
 
+    @@index([codeHash])
+    @@index([userId])
+    @@index([applicationId])
+    @@index([ssoSessionId])
     @@map("authorization_codes")
 }
 
@@ -155,6 +167,11 @@ model AccessToken {
     application Application @relation(fields: [applicationId], references: [id], onDelete: Cascade)
     ssoSession  SsoSession  @relation(fields: [ssoSessionId], references: [id], onDelete: Cascade)
 
+    @@index([tokenHash])
+    @@index([userId])
+    @@index([applicationId])
+    @@index([ssoSessionId])
+    @@index([status])
     @@map("access_tokens")
 }
 
@@ -174,6 +191,10 @@ model Event {
     application Application?  @relation(fields: [applicationId], references: [id])
     deliveries EventDelivery[]
 
+    @@index([status])
+    @@index([eventType])
+    @@index([userId])
+    @@index([createdAt])
     @@map("events")
 }
 
@@ -191,6 +212,10 @@ model EventDelivery {
     event       Event       @relation(fields: [eventId], references: [id], onDelete: Cascade)
     application Application @relation(fields: [applicationId], references: [id], onDelete: Cascade)
 
+    @@index([eventId])
+    @@index([applicationId])
+    @@index([status])
+    @@index([nextRetryAt])
     @@map("event_deliveries")
 }
 
@@ -208,5 +233,10 @@ model AuditLog {
 
     user User? @relation(fields: [userId], references: [id])
 
+    @@index([eventType])
+    @@index([userId])
+    @@index([applicationId])
+    @@index([sessionId])
+    @@index([createdAt])
     @@map("audit_logs")
 }

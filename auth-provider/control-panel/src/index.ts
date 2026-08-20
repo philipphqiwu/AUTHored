@@ -9,6 +9,7 @@ import { dirname } from 'path'
 
 import routes from './routes/index'
 import authRoutes from './routes/auth'
+import healthRoutes from './routes/health'
 import { requireAuth } from './middleware/auth'
 import prisma from './utils/prisma'
 
@@ -27,6 +28,7 @@ app.use(express.urlencoded({extended: true}))
 app.use(cookieParser())
 app.use('/css', express.static(path.join(__dirname, '../public/css')))
 
+app.use('/', healthRoutes)
 app.use('/', authRoutes)
 
 app.use(requireAuth)
@@ -42,6 +44,17 @@ app.get('/', async (req, res) => {
 
 app.use('/', routes)
 
-app.listen(PORT, () => {
+const server = app.listen(PORT, () => {
     console.log(`Control Panel running on http://localhost:${PORT}`)
 })
+
+const shutdown = (signal: string) => {
+    console.log(`Control Panel received ${signal}, shutting down gracefully...`)
+    server.close(async () => {
+        await prisma.$disconnect()
+        process.exit(0)
+    })
+}
+
+process.on('SIGTERM', () => shutdown('SIGTERM'))
+process.on('SIGINT', () => shutdown('SIGINT'))

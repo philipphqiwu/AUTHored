@@ -188,6 +188,36 @@ router.post('/:id/toggle', async (req, res) => {
             data: { status: newStatus }
         })
         
+        if (newStatus === 'inactive') {
+            const policies = await prisma.applicationGroupPolicy.findMany({
+                where: { applicationId: req.params.id },
+                select: { groupId: true }
+            })
+            const groupIds = policies.map(p => p.groupId)
+            
+            if (groupIds.length > 0) {
+                const affectedUserGroups = await prisma.userGroup.findMany({
+                    where: { groupId: { in: groupIds } },
+                    select: { userId: true }
+                })
+                const affectedUserIds = [...new Set(affectedUserGroups.map(ug => ug.userId))]
+                
+                for (const userId of affectedUserIds) {
+                    await prisma.event.create({
+                        data: {
+                            eventType: 'AccessPolicyChanged',
+                            userId,
+                            applicationId: req.params.id,
+                            payload: {
+                                reason: 'application_deactivated',
+                                applicationId: req.params.id
+                            }
+                        }
+                    })
+                }
+            }
+        }
+        
         await prisma.auditLog.create({
             data: {
                 eventType: 'application_status_changed',

@@ -2,6 +2,7 @@ import { Router, Request, Response } from 'express'
 import bcrypt from 'bcrypt'
 import prisma from '../utils/prisma.js'
 import { generateToken, hashToken } from '../utils/crypto.js'
+import { loginLimiter } from '../middleware/rateLimit.js'
 
 const router = Router()
 
@@ -44,7 +45,7 @@ router.get('/login', (req: Request, res: Response) => {
   })
 })
 
-router.post('/login', async (req: Request, res: Response) => {
+router.post('/login', loginLimiter, async (req: Request, res: Response) => {
   try {
     const { email, password, redirect_uri } = req.body
     
@@ -149,11 +150,22 @@ router.post('/login', async (req: Request, res: Response) => {
   }
 })
 
-router.get('/password/change', (req: Request, res: Response) => {
+router.get('/password/change', async (req: Request, res: Response) => {
   const sessionToken = req.cookies.sso_session
   if (!sessionToken) {
     return res.redirect('/login')
   }
+  
+  const sessionTokenHash = hashToken(sessionToken)
+  const session = await prisma.ssoSession.findFirst({
+    where: { sessionTokenHash, status: 'active' }
+  })
+  
+  if (!session || session.expiresAt < new Date()) {
+    res.clearCookie('sso_session')
+    return res.redirect('/login')
+  }
+  
   res.render('password-change', { title: 'Change Password', error: null, success: null })
 })
 
@@ -172,7 +184,8 @@ router.post('/password/change', async (req: Request, res: Response) => {
       include: { user: true }
     })
     
-    if (!session) {
+    if (!session || session.expiresAt < new Date()) {
+      res.clearCookie('sso_session')
       return res.redirect('/login')
     }
     

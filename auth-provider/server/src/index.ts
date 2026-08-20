@@ -7,7 +7,11 @@ import { dirname } from 'path'
 
 import authRoutes from './routes/auth.js'
 import oauthRoutes from './routes/oauth.js'
-import { connect as connectEventPublisher, startPolling } from './utils/eventPublisher.js'
+import healthRoutes from './routes/health.js'
+import { connect as connectEventPublisher, startPolling, disconnect as disconnectEventPublisher } from './utils/eventPublisher.js'
+import prisma from './utils/prisma.js'
+import { hashToken } from './utils/crypto.js'
+import { errorHandler, notFoundHandler } from './middleware/errorHandler.js'
 
 const app = express()
 const PORT = process.env.PORT || 3000
@@ -21,16 +25,46 @@ app.use(express.json())
 app.use(express.urlencoded({ extended: true }))
 app.use(cookieParser())
 
+app.use('/', healthRoutes)
 app.use('/', authRoutes)
 app.use('/', oauthRoutes)
 
-app.get('/', (req, res) => {
-  res.json({ status: 'ok', service: 'Auth Provider Server' })
+app.get('/', async (req, res) => {
+  const sessionToken = req.cookies.sso_session
+  
+  if (sessionToken) {
+    const sessionTokenHash = hashToken(sessionToken)
+    const session = await prisma.ssoSession.findFirst({
+      where: { sessionTokenHash, status: 'active' }
+    })
+    
+    if (session && session.expiresAt > new Date()) {
+      return res.redirect('/profile')
+    }
+  }
+  
+  res.redirect('/login')
 })
 
-app.listen(PORT, async () => {
+// Error handling middleware (must be after all routes)
+app.use(notFoundHandler)
+app.use(errorHandler)
+
+const server = app.listen(PORT, async () => {
   console.log(`Auth Server running on http://localhost:${PORT}`)
   
   await connectEventPublisher()
   startPolling()
 })
+
+const shutdown = async (signal: string) => {
+  console.log(`Auth Server received ${signal}, shutting down gracefully...`)
+  server.close(async () => {
+    await disconnectEventPublisher()
+    await prisma.$disconnect()
+    process.exit(0)
+  })
+}
+
+process.on('SIGTERM', () => shutdown('SIGTERM'))
+process.on('SIGINT', () => shutdown('SIGINT'))

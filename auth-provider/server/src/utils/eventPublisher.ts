@@ -5,14 +5,18 @@ const RABBITMQ_URL = process.env.RABBITMQ_URL || 'amqp://guest:guest@localhost:5
 const EXCHANGE_NAME = 'auth_events'
 const POLL_INTERVAL = 5000 // 5 seconds
 
-let connection: amqp.Connection | null = null
+let connection: amqp.ChannelModel | null = null
 let channel: amqp.Channel | null = null
 let isPolling = false
+let pollInterval: NodeJS.Timeout | null = null
 
 export async function connect(): Promise<void> {
   try {
-    connection = await amqp.connect(RABBITMQ_URL)
-    channel = await connection.createChannel()
+    const nextConnection = await amqp.connect(RABBITMQ_URL)
+    const nextChannel = await nextConnection.createChannel()
+
+    connection = nextConnection
+    channel = nextChannel
     
     await channel.assertExchange(EXCHANGE_NAME, 'topic', {
       durable: true
@@ -89,16 +93,22 @@ export async function pollAndPublish(): Promise<void> {
 
 export function startPolling(): void {
   console.log('Event Publisher started polling')
-  setInterval(pollAndPublish, POLL_INTERVAL)
+  pollInterval = setInterval(pollAndPublish, POLL_INTERVAL)
   pollAndPublish()
 }
 
 export async function disconnect(): Promise<void> {
+  if (pollInterval) {
+    clearInterval(pollInterval)
+    pollInterval = null
+  }
   if (channel) {
     await channel.close()
+    channel = null
   }
   if (connection) {
     await connection.close()
+    connection = null
   }
   console.log('Event Publisher disconnected')
 }
