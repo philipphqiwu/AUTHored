@@ -1,4 +1,5 @@
 const AUTH_PROVIDER_URL = process.env.AUTH_PROVIDER_URL || 'http://localhost:3000'
+const INTERNAL_AUTH_PROVIDER_URL = process.env.INTERNAL_AUTH_PROVIDER_URL || AUTH_PROVIDER_URL
 const CLIENT_ID = process.env.CLIENT_ID || 'app-b-client-id'
 const CLIENT_SECRET = process.env.CLIENT_SECRET || 'app-b-client-secret'
 const REDIRECT_URI = process.env.REDIRECT_URI || 'http://localhost:3003/callback'
@@ -17,7 +18,7 @@ export function buildAuthorizationUrl(state: string, codeChallenge: string): str
 }
 
 export async function exchangeCodeForToken(code: string, codeVerifier: string): Promise<{ access_token: string, token_type: string, expires_in: number }> {
-  const response = await fetch(`${AUTH_PROVIDER_URL}/token`, {
+  const response = await fetch(`${INTERNAL_AUTH_PROVIDER_URL}/token`, {
     method: 'POST',
     headers: {
       'Content-Type': 'application/json'
@@ -40,8 +41,8 @@ export async function exchangeCodeForToken(code: string, codeVerifier: string): 
   return response.json()
 }
 
-export async function getUserInfo(accessToken: string): Promise<{ sub: string, name: string, email: string, email_verified: boolean }> {
-  const response = await fetch(`${AUTH_PROVIDER_URL}/userinfo`, {
+export async function getUserInfo(accessToken: string): Promise<{ sub: string, name: string, email: string, email_verified: boolean, central_session_id: string }> {
+  const response = await fetch(`${INTERNAL_AUTH_PROVIDER_URL}/userinfo`, {
     headers: {
       'Authorization': `Bearer ${accessToken}`
     }

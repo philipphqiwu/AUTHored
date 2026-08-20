@@ -7,6 +7,9 @@ import { fileURLToPath } from 'url'
 import { dirname } from 'path'
 
 import routes from './routes/index.js'
+import healthRoutes from './routes/health.js'
+import { errorHandler, notFoundHandler } from './middleware/errorHandler.js'
+import prisma from './utils/prisma.js'
 
 const app = express()
 const PORT = process.env.PORT || 3002
@@ -22,8 +25,24 @@ app.use(express.json())
 app.use(express.urlencoded({ extended: true }))
 app.use(cookieParser())
 
+app.use('/', healthRoutes)
 app.use('/', routes)
 
-app.listen(PORT, () => {
+// Error handling middleware (must be after all routes)
+app.use(notFoundHandler)
+app.use(errorHandler)
+
+const server = app.listen(PORT, () => {
   console.log(`App A running on http://localhost:${PORT}`)
 })
+
+const shutdown = (signal: string) => {
+  console.log(`App A received ${signal}, shutting down gracefully...`)
+  server.close(async () => {
+    await prisma.$disconnect()
+    process.exit(0)
+  })
+}
+
+process.on('SIGTERM', () => shutdown('SIGTERM'))
+process.on('SIGINT', () => shutdown('SIGINT'))

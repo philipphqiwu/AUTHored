@@ -155,7 +155,7 @@ router.get('/callback', async (req: Request, res: Response) => {
       data: {
         sessionTokenHash,
         externalUserId: userInfo.sub,
-        centralSessionId: tokenResponse.access_token,
+        centralSessionId: userInfo.central_session_id,
         status: 'active',
         expiresAt
       }

@@ -34,12 +34,24 @@ router.post('/logout', async (req: Request, res: Response) => {
       })
     }
     
-    const { userId, sessionId, reason } = req.body
+    const { eventId, eventType, userId, sessionId, reason, timestamp } = req.body
     
-    if (!userId) {
+    if (!eventId || !eventType || !userId || !timestamp) {
       return res.status(400).json({
-        error: { code: 'INVALID_REQUEST', message: 'Missing userId' }
+        error: { code: 'INVALID_REQUEST', message: 'Missing required event data' }
       })
+    }
+
+    const occurredAt = new Date(timestamp)
+    if (Number.isNaN(occurredAt.getTime()) || Math.abs(Date.now() - occurredAt.getTime()) > 5 * 60 * 1000) {
+      return res.status(401).json({
+        error: { code: 'STALE_REQUEST', message: 'Request timestamp is invalid' }
+      })
+    }
+
+    const processedEvent = await prisma.processedEvent.findUnique({ where: { eventId } })
+    if (processedEvent) {
+      return res.json({ message: 'Event already processed', sessionsRevoked: 0 })
     }
     
     await logActivity('backchannel_logout_received', {
@@ -55,17 +67,31 @@ router.post('/logout', async (req: Request, res: Response) => {
       }
     })
     
-    for (const session of sessions) {
-      await prisma.localSession.update({
-        where: { id: session.id },
+    await prisma.$transaction([
+      prisma.localSession.updateMany({
+        where: {
+          externalUserId: userId,
+          status: 'active'
+        },
         data: {
           status: 'revoked',
           revokedAt: new Date(),
           revokeReason: reason || 'backchannel_logout'
         }
+      }),
+      prisma.processedEvent.create({
+        data: {
+          eventId,
+          eventType,
+          result: `revoked ${sessions.length} local session(s)`
+        }
       })
-      
+    ])
+
+    for (const session of sessions) {
       await logActivity('session_revoked', {
+        eventId,
+        eventType,
         sessionId: session.id,
         reason: reason || 'backchannel_logout'
       }, {
