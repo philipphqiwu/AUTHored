@@ -105,10 +105,26 @@
         <div class="info-label">Session Expires</div>
         <div class="info-value"><%= new Date(session.expiresAt).toLocaleString() %></div>
       </div>
+
+      <div class="info-item">
+        <div class="info-label">Two-Factor Authentication</div>
+        <div class="info-value">
+          <% if (user.totpEnabled) { %>
+            <span style="color: #38a169; font-weight: 500;">Enabled</span>
+          <% } else { %>
+            <span style="color: #a0aec0;">Disabled</span>
+          <% } %>
+        </div>
+      </div>
     </div>
     
     <div class="actions">
       <a href="/password/change" class="btn btn-primary">Change Password</a>
+      <% if (user.totpEnabled) { %>
+        <a href="/mfa/disable" class="btn btn-secondary" style="background: #fff5f5; color: #c53030;">Disable MFA</a>
+      <% } else { %>
+        <a href="/mfa/setup" class="btn btn-secondary" style="background: #f0fff4; color: #276749;">Enable MFA</a>
+      <% } %>
       <form method="POST" action="/logout" style="margin: 0;">
         <button type="submit" class="btn btn-danger">Logout (SSO)</button>
       </form>

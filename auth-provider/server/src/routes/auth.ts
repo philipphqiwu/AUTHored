@@ -106,7 +106,19 @@ router.post('/login', loginLimiter, async (req: Request, res: Response) => {
     const sessionToken = generateToken()
     const sessionTokenHash = hashToken(sessionToken)
     const expiresAt = new Date(Date.now() + 24 * 60 * 60 * 1000)
-    
+
+    if (user.totpEnabled) {
+      const payload = JSON.stringify({ userId: user.id, redirectUri: redirect_uri || null, ts: Date.now() })
+      const mfaToken = Buffer.from(payload).toString('base64url')
+      res.cookie('mfa_pending', mfaToken, {
+        httpOnly: true,
+        secure: process.env.NODE_ENV === 'production',
+        sameSite: 'lax',
+        maxAge: 5 * 60 * 1000
+      })
+      return res.redirect('/mfa/verify')
+    }
+
     await prisma.ssoSession.create({
       data: {
         userId: user.id,

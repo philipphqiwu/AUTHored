@@ -1,0 +1,83 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8">
+  <title><%= title || 'Recovery Codes' %></title>
+  <style>
+    * { margin: 0; padding: 0; box-sizing: border-box; }
+    body {
+      font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, sans-serif;
+      background: #f5f7fa;
+      display: flex;
+      justify-content: center;
+      align-items: center;
+      min-height: 100vh;
+    }
+    .card {
+      background: #fff;
+      border-radius: 8px;
+      padding: 2rem;
+      box-shadow: 0 2px 8px rgba(0,0,0,0.1);
+      width: 100%;
+      max-width: 420px;
+    }
+    h1 { font-size: 1.5rem; margin-bottom: 0.5rem; text-align: center; }
+    .subtitle { text-align: center; color: #718096; font-size: 0.9rem; margin-bottom: 1.5rem; }
+    .warning {
+      background: #fffbeb;
+      border: 1px solid #f6e05e;
+      color: #975a16;
+      padding: 0.75rem;
+      border-radius: 4px;
+      margin-bottom: 1rem;
+      font-size: 0.85rem;
+    }
+    .codes {
+      background: #edf2f7;
+      border-radius: 4px;
+      padding: 1rem;
+      margin-bottom: 1.5rem;
+      font-family: monospace;
+      font-size: 0.95rem;
+      line-height: 1.8;
+      text-align: center;
+      user-select: all;
+    }
+    .codes div {
+      display: inline-block;
+      margin: 0.1rem 0.5rem;
+    }
+    button {
+      width: 100%;
+      padding: 0.75rem;
+      background: #3182ce;
+      color: #fff;
+      border: none;
+      border-radius: 4px;
+      font-size: 1rem;
+      cursor: pointer;
+    }
+    button:hover { background: #2b6cb0; }
+  </style>
+</head>
+<body>
+  <div class="card">
+    <h1>MFA Enabled</h1>
+    <p class="subtitle">Two-factor authentication is now active</p>
+
+    <div class="warning">
+      Save these recovery codes in a safe place. Each code can only be used once. If you lose access to your authenticator app, you can use these codes to log in.
+    </div>
+
+    <div class="codes">
+      <% recoveryCodes.forEach(function(code) { %>
+        <div><%= code %></div>
+      <% }) %>
+    </div>
+
+    <form method="GET" action="/profile">
+      <button type="submit">Done</button>
+    </form>
+  </div>
+</body>
+</html>

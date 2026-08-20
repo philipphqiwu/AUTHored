@@ -14,6 +14,8 @@ model User {
     email        String   @unique
     passwordHash String   @map("password_hash")
     status       String   @default("active")
+    totpEnabled  Boolean  @default(false) @map("totp_enabled")
+    totpSecret   String?  @map("totp_secret")
     createdAt    DateTime @default(now()) @map("created_at")
     updatedAt    DateTime @updatedAt @map("updated_at")
 
@@ -23,8 +25,23 @@ model User {
     accessTokens     AccessToken[]
     events           Event[]
     auditLogs        AuditLog[]
+    recoveryCodes    RecoveryCode[]
 
     @@map("users")
+}
+
+model RecoveryCode {
+    id        String   @id @default(uuid())
+    userId    String   @map("user_id")
+    codeHash  String   @map("code_hash")
+    usedAt    DateTime? @map("used_at")
+    createdAt DateTime @default(now()) @map("created_at")
+
+    user User @relation(fields: [userId], references: [id], onDelete: Cascade)
+
+    @@index([userId])
+    @@index([codeHash])
+    @@map("recovery_codes")
 }
 
 model Group {

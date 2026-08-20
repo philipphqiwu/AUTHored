@@ -9,6 +9,7 @@
       <th>Name</th>
       <th>Email</th>
       <th>Status</th>
+      <th>MFA</th>
       <th>Groups</th>
       <th>Actions</th>
     </tr>
@@ -22,6 +23,13 @@
           <span class="badge <%= user.status === 'active' ? 'badge-active' : 'badge-inactive' %>">
             <%= user.status %>
           </span>
+        </td>
+        <td>
+          <% if (user.totpEnabled) { %>
+            <span class="badge badge-active">Enabled</span>
+          <% } else { %>
+            <span class="badge" style="background: #e2e8f0; color: #718096;">Off</span>
+          <% } %>
         </td>
         <td><%= user.userGroups.map(ug => ug.group.name).join(', ') || '-' %></td>
         <td class="actions">

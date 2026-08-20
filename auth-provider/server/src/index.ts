@@ -8,6 +8,7 @@ import { dirname } from 'path'
 import authRoutes from './routes/auth.js'
 import oauthRoutes from './routes/oauth.js'
 import healthRoutes from './routes/health.js'
+import mfaRoutes from './routes/mfa.js'
 import { connect as connectEventPublisher, startPolling, disconnect as disconnectEventPublisher } from './utils/eventPublisher.js'
 import prisma from './utils/prisma.js'
 import { hashToken } from './utils/crypto.js'
@@ -28,6 +29,7 @@ app.use(cookieParser())
 app.use('/', healthRoutes)
 app.use('/', authRoutes)
 app.use('/', oauthRoutes)
+app.use('/', mfaRoutes)
 
 app.get('/', async (req, res) => {
   const sessionToken = req.cookies.sso_session

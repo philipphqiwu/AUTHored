@@ -1,0 +1,92 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8">
+  <title><%= title || 'Disable MFA' %></title>
+  <style>
+    * { margin: 0; padding: 0; box-sizing: border-box; }
+    body {
+      font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, sans-serif;
+      background: #f5f7fa;
+      display: flex;
+      justify-content: center;
+      align-items: center;
+      min-height: 100vh;
+    }
+    .card {
+      background: #fff;
+      border-radius: 8px;
+      padding: 2rem;
+      box-shadow: 0 2px 8px rgba(0,0,0,0.1);
+      width: 100%;
+      max-width: 400px;
+    }
+    h1 { font-size: 1.5rem; margin-bottom: 0.5rem; text-align: center; }
+    .subtitle { text-align: center; color: #718096; font-size: 0.9rem; margin-bottom: 1.5rem; }
+    .warning {
+      background: #fffbeb;
+      border: 1px solid #f6e05e;
+      color: #975a16;
+      padding: 0.75rem;
+      border-radius: 4px;
+      margin-bottom: 1rem;
+      font-size: 0.85rem;
+    }
+    .error {
+      background: #fed7d7;
+      color: #9b2c2c;
+      padding: 0.75rem;
+      border-radius: 4px;
+      margin-bottom: 1rem;
+    }
+    label { display: block; font-size: 0.85rem; font-weight: 500; margin-bottom: 0.25rem; color: #4a5568; }
+    input {
+      width: 100%;
+      padding: 0.5rem 0.75rem;
+      border: 1px solid #cbd5e0;
+      border-radius: 4px;
+      font-size: 0.9rem;
+      margin-bottom: 1rem;
+      text-align: center;
+      letter-spacing: 0.25em;
+    }
+    input:focus { outline: none; border-color: #3182ce; box-shadow: 0 0 0 2px rgba(49, 130, 206, 0.2); }
+    button {
+      width: 100%;
+      padding: 0.75rem;
+      border: none;
+      border-radius: 4px;
+      font-size: 1rem;
+      cursor: pointer;
+    }
+    .btn-danger { background: #e53e3e; color: #fff; }
+    .btn-danger:hover { background: #c53030; }
+    .btn-secondary { background: #e2e8f0; color: #2d3748; margin-top: 0.5rem; }
+    .btn-secondary:hover { background: #cbd5e0; }
+  </style>
+</head>
+<body>
+  <div class="card">
+    <h1>Disable Two-Factor Authentication</h1>
+    <p class="subtitle">Enter your TOTP code to confirm</p>
+
+    <% if (error) { %>
+      <div class="error"><%= error %></div>
+    <% } %>
+
+    <div class="warning">
+      Warning: Disabling MFA will remove the two-factor protection from your account. Your recovery codes will also be deleted.
+    </div>
+
+    <form method="POST" action="/mfa/disable">
+      <label>Enter 6-digit code from your authenticator app</label>
+      <input type="text" name="code" required maxlength="6" pattern="[0-9]{6}" inputmode="numeric" autocomplete="one-time-code" placeholder="000000">
+      <button type="submit" class="btn-danger">Disable MFA</button>
+    </form>
+
+    <form method="GET" action="/profile">
+      <button type="submit" class="btn-secondary">Cancel</button>
+    </form>
+  </div>
+</body>
+</html>
