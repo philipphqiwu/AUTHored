@@ -90,9 +90,11 @@ async function notifyApp(application: any, event: any, reason: string): Promise<
       eventId: event.id,
       eventType: event.eventType,
       userId: event.userId,
-      sessionId: event.centralSessionId,
+      centralSessionId: event.centralSessionId || null,
+      applicationId: application.id,
       reason,
-      timestamp: new Date().toISOString()
+      occurredAt: event.createdAt instanceof Date ? event.createdAt.toISOString() : event.createdAt,
+      metadata: event.payload || {}
     })
     
     const signature = generateHmacSignature(payload, INTERNAL_SECRET)

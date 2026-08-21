@@ -94,7 +94,51 @@ router.post('/:id', async (req, res) => {
 
 router.post('/:id/delete', async (req, res) => {
     try {
+        const policies = await prisma.applicationGroupPolicy.findMany({
+            where: { groupId: req.params.id },
+            select: { applicationId: true }
+        })
+
+        const userGroups = await prisma.userGroup.findMany({
+            where: { groupId: req.params.id },
+            select: { userId: true }
+        })
+
         await prisma.group.delete({ where: { id: req.params.id } })
+
+        const affectedUserIds = [...new Set(userGroups.map(ug => ug.userId))]
+        const affectedAppIds = [...new Set(policies.map(p => p.applicationId))]
+
+        for (const userId of affectedUserIds) {
+            const remainingGroups = await prisma.userGroup.findMany({
+                where: { userId },
+                select: { groupId: true }
+            })
+            const remainingGroupIds = remainingGroups.map(ug => ug.groupId)
+
+            for (const applicationId of affectedAppIds) {
+                const allAppPolicies = await prisma.applicationGroupPolicy.findMany({
+                    where: { applicationId },
+                    select: { groupId: true }
+                })
+                const appGroupIds = allAppPolicies.map(p => p.groupId)
+                const stillHasAccess = remainingGroupIds.some(gid => appGroupIds.includes(gid))
+
+                if (!stillHasAccess) {
+                    await prisma.event.create({
+                        data: {
+                            eventType: 'AccessPolicyChanged',
+                            userId,
+                            applicationId,
+                            payload: {
+                                reason: 'group_deleted',
+                                applicationId
+                            }
+                        }
+                    })
+                }
+            }
+        }
         
         await prisma.auditLog.create({
             data: {

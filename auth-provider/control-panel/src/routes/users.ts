@@ -73,6 +73,12 @@ router.post('/:id', async (req, res) => {
     try {
         const { name, email, status, groupIds } = req.body
         const groupIdsArray = Array.isArray(groupIds) ? groupIds : (groupIds ? [groupIds] : [])
+
+        const oldUserGroups = await prisma.userGroup.findMany({
+            where: { userId: req.params.id },
+            select: { groupId: true }
+        })
+        const oldGroupIds = oldUserGroups.map(ug => ug.groupId)
         
         await prisma.user.update({
             where: { id: req.params.id },
@@ -88,6 +94,42 @@ router.post('/:id', async (req, res) => {
                     groupId
                 }))
             })
+        }
+
+        const newGroupIds = groupIdsArray.map((g: string) => String(g))
+        const oldSet = new Set(oldGroupIds)
+        const newSet = new Set(newGroupIds)
+        const groupsRemoved = oldGroupIds.filter((g: string) => !newSet.has(g))
+
+        if (groupsRemoved.length > 0) {
+            const policies = await prisma.applicationGroupPolicy.findMany({
+                where: { groupId: { in: groupsRemoved } }
+            })
+
+            const affectedAppIds = [...new Set(policies.map(p => p.applicationId))]
+
+            for (const applicationId of affectedAppIds) {
+                const allAppPolicies = await prisma.applicationGroupPolicy.findMany({
+                    where: { applicationId },
+                    select: { groupId: true }
+                })
+                const appGroupIds = allAppPolicies.map(p => p.groupId)
+                const stillHasAccess = [...newSet].some(gid => appGroupIds.includes(gid))
+
+                if (!stillHasAccess) {
+                    await prisma.event.create({
+                        data: {
+                            eventType: 'AccessPolicyChanged',
+                            userId: req.params.id,
+                            applicationId,
+                            payload: {
+                                reason: 'group_membership_changed',
+                                applicationId
+                            }
+                        }
+                    })
+                }
+            }
         }
         
         await prisma.auditLog.create({

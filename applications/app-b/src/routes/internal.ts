@@ -34,16 +34,16 @@ router.post('/logout', async (req: Request, res: Response) => {
       })
     }
     
-    const { eventId, eventType, userId, sessionId, reason, timestamp } = req.body
+    const { eventId, eventType, userId, centralSessionId, applicationId, reason, occurredAt, metadata } = req.body
     
-    if (!eventId || !eventType || !userId || !timestamp) {
+    if (!eventId || !eventType || !userId || !occurredAt) {
       return res.status(400).json({
         error: { code: 'INVALID_REQUEST', message: 'Missing required event data' }
       })
     }
 
-    const occurredAt = new Date(timestamp)
-    if (Number.isNaN(occurredAt.getTime()) || Math.abs(Date.now() - occurredAt.getTime()) > 5 * 60 * 1000) {
+    const occurredAtDate = new Date(occurredAt)
+    if (Number.isNaN(occurredAtDate.getTime()) || Math.abs(Date.now() - occurredAtDate.getTime()) > 5 * 60 * 1000) {
       return res.status(401).json({
         error: { code: 'STALE_REQUEST', message: 'Request timestamp is invalid' }
       })
@@ -56,7 +56,7 @@ router.post('/logout', async (req: Request, res: Response) => {
     
     await logActivity('backchannel_logout_received', {
       userId,
-      sessionId,
+      centralSessionId,
       reason
     })
     

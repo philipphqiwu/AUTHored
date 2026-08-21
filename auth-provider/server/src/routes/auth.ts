@@ -237,6 +237,7 @@ router.post('/password/change', async (req: Request, res: Response) => {
       data: {
         eventType: 'PasswordChanged',
         userId: session.userId,
+        centralSessionId: session.id,
         payload: {
           reason: 'password_changed'
         }
