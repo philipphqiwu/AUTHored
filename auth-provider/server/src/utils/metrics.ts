@@ -58,13 +58,6 @@ export const eventsPublishedTotal = new Counter({
   registers: [register]
 })
 
-export const eventsDeliveredTotal = new Counter({
-  name: 'authored_events_delivered_total',
-  help: 'Total events delivered to applications',
-  labelNames: ['event_type', 'app', 'result'],
-  registers: [register]
-})
-
 export const httpErrorsTotal = new Counter({
   name: 'authored_http_errors_total',
   help: 'Total HTTP error responses (4xx/5xx)',
