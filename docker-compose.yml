@@ -140,9 +140,15 @@ services:
       context: ./auth-provider/sync-worker
       dockerfile: ../../Dockerfile
     container_name: authored-sync-worker
+    ports:
+      - "3004:3004"
     environment:
       DATABASE_URL: postgresql://postgres:postgres@postgres:5432/auth_db
       RABBITMQ_URL: amqp://guest:guest@rabbitmq:5672
+      RABBITMQ_HTTP_URL: http://rabbitmq:15672
+      RABBITMQ_DEFAULT_USER: guest
+      RABBITMQ_DEFAULT_PASS: guest
+      METRICS_PORT: 3004
       INTERNAL_SECRET: shared-secret-change-in-production
       NODE_ENV: development
     depends_on:

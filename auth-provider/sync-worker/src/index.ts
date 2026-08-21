@@ -2,15 +2,28 @@ import 'dotenv/config'
 import amqp from 'amqplib'
 import crypto from 'crypto'
 import { PrismaClient } from './generated/prisma-client/index.js'
+import { startMetricsServer } from './routes/metrics.js'
+import {
+  eventsProcessedTotal,
+  eventProcessingDuration,
+  appNotificationsTotal,
+  queueDepth,
+  dlqDepth,
+  rabbitmqConnected
+} from './utils/metrics.js'
 
 const prisma = new PrismaClient()
 const RABBITMQ_URL = process.env.RABBITMQ_URL || 'amqp://guest:guest@localhost:5672'
+const RABBITMQ_HTTP = process.env.RABBITMQ_HTTP_URL || 'http://rabbitmq:15672'
+const RABBITMQ_USER = process.env.RABBITMQ_DEFAULT_USER || 'guest'
+const RABBITMQ_PASS = process.env.RABBITMQ_DEFAULT_PASS || 'guest'
 const EXCHANGE_NAME = 'auth_events'
 const QUEUE_NAME = 'sync_worker_queue'
 const DEAD_LETTER_QUEUE = 'sync_worker_dlq'
 const INTERNAL_SECRET = process.env.INTERNAL_SECRET || 'shared-secret-change-in-production'
 const MAX_RETRIES = 5
 const BASE_DELAY = 1000 // 1 second
+const QUEUE_POLL_INTERVAL = 5000 // 5 seconds
 
 let connection: amqp.Connection | null = null
 let channel: amqp.Channel | null = null
@@ -39,9 +52,11 @@ async function connect(): Promise<void> {
     await channel!.bindQueue(QUEUE_NAME, EXCHANGE_NAME, 'passwordchanged')
     await channel!.bindQueue(QUEUE_NAME, EXCHANGE_NAME, 'accesspolicychanged')
     
+    rabbitmqConnected.set(1)
     console.log('Sync Worker connected to RabbitMQ')
   } catch (error) {
     console.error('Sync Worker connection error:', error)
+    rabbitmqConnected.set(0)
     setTimeout(connect, 5000)
   }
 }
@@ -72,10 +87,12 @@ async function notifyApp(application: any, event: any, reason: string): Promise<
       throw new Error(`HTTP ${response.status}: ${response.statusText}`)
     }
     
+    appNotificationsTotal.inc({ app: application.name, result: 'success' })
     console.log(`Notified ${application.name} for user ${event.userId}`)
     return true
   } catch (error) {
     console.error(`Failed to notify ${application.name}:`, error)
+    appNotificationsTotal.inc({ app: application.name, result: 'failure' })
     return false
   }
 }
@@ -124,6 +141,7 @@ async function deliverEvent(event: any, application: any, reason: string): Promi
 }
 
 async function processEvent(event: any): Promise<boolean> {
+  const startTime = process.hrtime.bigint()
   console.log(`Processing event: ${event.eventType} (${event.id})`)
   const payload = event.payload as any
   let applications: any[] = []
@@ -152,7 +170,12 @@ async function processEvent(event: any): Promise<boolean> {
     data: { status: completed ? 'processed' : 'failed' }
   })
 
-  console.log(`Event ${event.id} ${completed ? 'processed' : 'failed'}`)
+  const durationNs = Number(process.hrtime.bigint() - startTime)
+  const durationSec = durationNs / 1e9
+  eventProcessingDuration.observe({ event_type: event.eventType }, durationSec)
+  eventsProcessedTotal.inc({ event_type: event.eventType, result: completed ? 'success' : 'failure' })
+
+  console.log(`Event ${event.id} ${completed ? 'processed' : 'failed'} (${durationSec.toFixed(2)}s)`)
   return completed
 }
 
@@ -192,14 +215,45 @@ async function startConsuming(): Promise<void> {
   })
 }
 
+async function pollQueueDepth(): Promise<void> {
+  const auth = Buffer.from(`${RABBITMQ_USER}:${RABBITMQ_PASS}`).toString('base64')
+  try {
+    const [qRes, dlqRes] = await Promise.all([
+      fetch(`${RABBITMQ_HTTP}/api/queues/%2F/${QUEUE_NAME}`, {
+        headers: { 'Authorization': `Basic ${auth}` }
+      }),
+      fetch(`${RABBITMQ_HTTP}/api/queues/%2F/${DEAD_LETTER_QUEUE}`, {
+        headers: { 'Authorization': `Basic ${auth}` }
+      })
+    ])
+
+    if (qRes.ok) {
+      const qData = await qRes.json() as any
+      queueDepth.set(qData.messages || 0)
+    }
+    if (dlqRes.ok) {
+      const dlqData = await dlqRes.json() as any
+      dlqDepth.set(dlqData.messages || 0)
+    }
+  } catch {
+    queueDepth.set(-1)
+    dlqDepth.set(-1)
+  }
+}
+
 async function main(): Promise<void> {
   console.log('Sync Worker starting...')
   
+  startMetricsServer()
   await connect()
   await startConsuming()
+
+  setInterval(pollQueueDepth, QUEUE_POLL_INTERVAL)
+  pollQueueDepth()
   
   const shutdown = async (signal: string) => {
     console.log(`Sync Worker received ${signal}, shutting down gracefully...`)
+    rabbitmqConnected.set(0)
     if (channel) await (channel as any).close()
     if (connection) await (connection as any).close()
     await prisma.$disconnect()

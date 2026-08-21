@@ -22,3 +22,8 @@ scrape_configs:
     static_configs:
       - targets: ['app-b:3003']
     metrics_path: '/metrics'
+
+  - job_name: 'sync-worker'
+    static_configs:
+      - targets: ['sync-worker:3004']
+    metrics_path: '/metrics'

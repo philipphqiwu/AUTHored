@@ -19,9 +19,134 @@
     <a href="/applications" class="btn btn-secondary btn-sm">View all</a>
   </div>
 
-  <div class="card" style="background: #f7fafc; border: 2px dashed #cbd5e0;">
-    <h2 style="font-size: 0.9rem; color: #718096; text-transform: uppercase; letter-spacing: 0.05em;">Metrics Dashboard</h2>
-    <p style="font-size: 1rem; color: #a0aec0; margin-top: 0.5rem;">Coming Soon</p>
-    <small style="color: #a0aec0;">Latency, errors, queue depth</small>
+  <div class="card">
+    <h2 style="font-size: 0.9rem; color: #718096; text-transform: uppercase; letter-spacing: 0.05em;">SSO Sessions</h2>
+    <p style="font-size: 2rem; font-weight: 600; color: #1a202c;"><%= dashboard.authServer.activeSessions %></p>
+    <small style="color: #a0aec0;">active central sessions</small>
+  </div>
+</div>
+
+<div style="margin-top: 2rem;">
+  <h2 style="font-size: 1.1rem; color: #4a5568; margin-bottom: 1rem;">System Metrics</h2>
+  <div style="display: grid; grid-template-columns: repeat(auto-fit, minmax(300px, 1fr)); gap: 1.5rem;">
+
+    <div class="card">
+      <h3 style="font-size: 0.95rem; color: #4a5568; margin-bottom: 1rem;">Auth Server</h3>
+      <div style="display: flex; justify-content: space-between; padding: 0.4rem 0; border-bottom: 1px solid #f7fafc;">
+        <span style="color: #718096; font-size: 0.85rem;">HTTP Requests</span>
+        <span style="font-weight: 600; font-family: monospace;"><%= dashboard.authServer.httpRequests %></span>
+      </div>
+      <div style="display: flex; justify-content: space-between; padding: 0.4rem 0; border-bottom: 1px solid #f7fafc;">
+        <span style="color: #718096; font-size: 0.85rem;">Errors (4xx/5xx)</span>
+        <span style="font-weight: 600; font-family: monospace; color: <%= dashboard.authServer.httpErrors !== '0' ? '#e53e3e' : '#38a169' %>;"><%= dashboard.authServer.httpErrors %></span>
+      </div>
+      <div style="display: flex; justify-content: space-between; padding: 0.4rem 0; border-bottom: 1px solid #f7fafc;">
+        <span style="color: #718096; font-size: 0.85rem;">Latency (avg)</span>
+        <span style="font-weight: 600; font-family: monospace;"><%= dashboard.authServer.latencyAvg %></span>
+      </div>
+      <div style="display: flex; justify-content: space-between; padding: 0.4rem 0; border-bottom: 1px solid #f7fafc;">
+        <span style="color: #718096; font-size: 0.85rem;">Latency (p95)</span>
+        <span style="font-weight: 600; font-family: monospace;"><%= dashboard.authServer.latencyP95 %></span>
+      </div>
+      <div style="display: flex; justify-content: space-between; padding: 0.4rem 0; border-bottom: 1px solid #f7fafc;">
+        <span style="color: #718096; font-size: 0.85rem;">Active Tokens</span>
+        <span style="font-weight: 600; font-family: monospace;"><%= dashboard.authServer.activeTokens %></span>
+      </div>
+      <div style="display: flex; justify-content: space-between; padding: 0.4rem 0; border-bottom: 1px solid #f7fafc;">
+        <span style="color: #718096; font-size: 0.85rem;">Login Attempts</span>
+        <span style="font-weight: 600; font-family: monospace;"><%= dashboard.authServer.loginAttempts %></span>
+      </div>
+      <div style="display: flex; justify-content: space-between; padding: 0.4rem 0; border-bottom: 1px solid #f7fafc;">
+        <span style="color: #718096; font-size: 0.85rem;">Auth Codes Issued</span>
+        <span style="font-weight: 600; font-family: monospace;"><%= dashboard.authServer.authCodesIssued %></span>
+      </div>
+      <div style="display: flex; justify-content: space-between; padding: 0.4rem 0; border-bottom: 1px solid #f7fafc;">
+        <span style="color: #718096; font-size: 0.85rem;">Events Published</span>
+        <span style="font-weight: 600; font-family: monospace;"><%= dashboard.authServer.eventsPublished %></span>
+      </div>
+      <div style="display: flex; justify-content: space-between; padding: 0.4rem 0;">
+        <span style="color: #718096; font-size: 0.85rem;">Memory</span>
+        <span style="font-weight: 600; font-family: monospace;"><%= dashboard.authServer.memoryBytes %></span>
+      </div>
+    </div>
+
+    <div class="card">
+      <h3 style="font-size: 0.95rem; color: #4a5568; margin-bottom: 1rem;">Sync Worker</h3>
+      <div style="display: flex; justify-content: space-between; padding: 0.4rem 0; border-bottom: 1px solid #f7fafc;">
+        <span style="color: #718096; font-size: 0.85rem;">RabbitMQ</span>
+        <span style="font-weight: 600; font-family: monospace; color: <%= dashboard.syncWorker.connected === '1' ? '#38a169' : '#e53e3e' %>;"><%= dashboard.syncWorker.connected === '1' ? 'Connected' : 'Disconnected' %></span>
+      </div>
+      <div style="display: flex; justify-content: space-between; padding: 0.4rem 0; border-bottom: 1px solid #f7fafc;">
+        <span style="color: #718096; font-size: 0.85rem;">Queue Depth</span>
+        <span style="font-weight: 600; font-family: monospace; color: <%= parseInt(dashboard.syncWorker.queueDepth) > 0 ? '#d69e2e' : '#38a169' %>;"><%= dashboard.syncWorker.queueDepth %></span>
+      </div>
+      <div style="display: flex; justify-content: space-between; padding: 0.4rem 0; border-bottom: 1px solid #f7fafc;">
+        <span style="color: #718096; font-size: 0.85rem;">DLQ Depth</span>
+        <span style="font-weight: 600; font-family: monospace; color: <%= parseInt(dashboard.syncWorker.dlqDepth) > 0 ? '#e53e3e' : '#38a169' %>;"><%= dashboard.syncWorker.dlqDepth %></span>
+      </div>
+      <div style="display: flex; justify-content: space-between; padding: 0.4rem 0; border-bottom: 1px solid #f7fafc;">
+        <span style="color: #718096; font-size: 0.85rem;">Events Processed</span>
+        <span style="font-weight: 600; font-family: monospace;"><%= dashboard.syncWorker.eventsProcessed %></span>
+      </div>
+      <div style="display: flex; justify-content: space-between; padding: 0.4rem 0; border-bottom: 1px solid #f7fafc;">
+        <span style="color: #718096; font-size: 0.85rem;">Processing (avg)</span>
+        <span style="font-weight: 600; font-family: monospace;"><%= dashboard.syncWorker.processingLatencyAvg %></span>
+      </div>
+      <div style="display: flex; justify-content: space-between; padding: 0.4rem 0; border-bottom: 1px solid #f7fafc;">
+        <span style="color: #718096; font-size: 0.85rem;">Processing (p95)</span>
+        <span style="font-weight: 600; font-family: monospace;"><%= dashboard.syncWorker.processingLatencyP95 %></span>
+      </div>
+      <div style="display: flex; justify-content: space-between; padding: 0.4rem 0;">
+        <span style="color: #718096; font-size: 0.85rem;">Memory</span>
+        <span style="font-weight: 600; font-family: monospace;"><%= dashboard.syncWorker.memoryBytes %></span>
+      </div>
+    </div>
+
+    <div class="card">
+      <h3 style="font-size: 0.95rem; color: #4a5568; margin-bottom: 1rem;">App A</h3>
+      <div style="display: flex; justify-content: space-between; padding: 0.4rem 0; border-bottom: 1px solid #f7fafc;">
+        <span style="color: #718096; font-size: 0.85rem;">HTTP Requests</span>
+        <span style="font-weight: 600; font-family: monospace;"><%= dashboard.appA.httpRequests %></span>
+      </div>
+      <div style="display: flex; justify-content: space-between; padding: 0.4rem 0; border-bottom: 1px solid #f7fafc;">
+        <span style="color: #718096; font-size: 0.85rem;">Errors (4xx/5xx)</span>
+        <span style="font-weight: 600; font-family: monospace; color: <%= dashboard.appA.httpErrors !== '0' ? '#e53e3e' : '#38a169' %>;"><%= dashboard.appA.httpErrors %></span>
+      </div>
+      <div style="display: flex; justify-content: space-between; padding: 0.4rem 0; border-bottom: 1px solid #f7fafc;">
+        <span style="color: #718096; font-size: 0.85rem;">Latency (avg)</span>
+        <span style="font-weight: 600; font-family: monospace;"><%= dashboard.appA.latencyAvg %></span>
+      </div>
+      <div style="display: flex; justify-content: space-between; padding: 0.4rem 0; border-bottom: 1px solid #f7fafc;">
+        <span style="color: #718096; font-size: 0.85rem;">Latency (p95)</span>
+        <span style="font-weight: 600; font-family: monospace;"><%= dashboard.appA.latencyP95 %></span>
+      </div>
+      <div style="display: flex; justify-content: space-between; padding: 0.4rem 0;">
+        <span style="color: #718096; font-size: 0.85rem;">Memory</span>
+        <span style="font-weight: 600; font-family: monospace;"><%= dashboard.appA.memoryBytes %></span>
+      </div>
+
+      <h3 style="font-size: 0.95rem; color: #4a5568; margin: 1rem 0 0.5rem;">App B</h3>
+      <div style="display: flex; justify-content: space-between; padding: 0.4rem 0; border-bottom: 1px solid #f7fafc;">
+        <span style="color: #718096; font-size: 0.85rem;">HTTP Requests</span>
+        <span style="font-weight: 600; font-family: monospace;"><%= dashboard.appB.httpRequests %></span>
+      </div>
+      <div style="display: flex; justify-content: space-between; padding: 0.4rem 0; border-bottom: 1px solid #f7fafc;">
+        <span style="color: #718096; font-size: 0.85rem;">Errors (4xx/5xx)</span>
+        <span style="font-weight: 600; font-family: monospace; color: <%= dashboard.appB.httpErrors !== '0' ? '#e53e3e' : '#38a169' %>;"><%= dashboard.appB.httpErrors %></span>
+      </div>
+      <div style="display: flex; justify-content: space-between; padding: 0.4rem 0; border-bottom: 1px solid #f7fafc;">
+        <span style="color: #718096; font-size: 0.85rem;">Latency (avg)</span>
+        <span style="font-weight: 600; font-family: monospace;"><%= dashboard.appB.latencyAvg %></span>
+      </div>
+      <div style="display: flex; justify-content: space-between; padding: 0.4rem 0; border-bottom: 1px solid #f7fafc;">
+        <span style="color: #718096; font-size: 0.85rem;">Latency (p95)</span>
+        <span style="font-weight: 600; font-family: monospace;"><%= dashboard.appB.latencyP95 %></span>
+      </div>
+      <div style="display: flex; justify-content: space-between; padding: 0.4rem 0;">
+        <span style="color: #718096; font-size: 0.85rem;">Memory</span>
+        <span style="font-weight: 600; font-family: monospace;"><%= dashboard.appB.memoryBytes %></span>
+      </div>
+    </div>
+
   </div>
 </div>

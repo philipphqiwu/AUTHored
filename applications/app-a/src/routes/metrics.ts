@@ -19,6 +19,13 @@ export const httpRequestTotal = new Counter({
   registers: [register]
 })
 
+export const httpErrorsTotal = new Counter({
+  name: 'authored_app_http_errors_total',
+  help: 'Total HTTP error responses (4xx/5xx)',
+  labelNames: ['status_code_class'],
+  registers: [register]
+})
+
 export function httpMetricsMiddleware(req: any, res: any, next: any) {
   const start = process.hrtime.bigint()
   const originalEnd = res.end
@@ -30,6 +37,10 @@ export function httpMetricsMiddleware(req: any, res: any, next: any) {
     const labels = { method: req.method, route, status_code: res.statusCode }
     httpRequestDuration.observe(labels, durationSec)
     httpRequestTotal.inc(labels)
+    if (res.statusCode >= 400) {
+      const classLabel = res.statusCode >= 500 ? '5xx' : '4xx'
+      httpErrorsTotal.inc({ status_code_class: classLabel })
+    }
     originalEnd.apply(this, args)
   }
   next()

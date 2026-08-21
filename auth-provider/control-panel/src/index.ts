@@ -12,6 +12,7 @@ import authRoutes from './routes/auth'
 import healthRoutes from './routes/health'
 import { requireAuth } from './middleware/auth'
 import prisma from './utils/prisma'
+import { fetchAllMetrics } from './utils/metrics'
 
 const app = express()
 const PORT = process.env.PORT || 3001
@@ -34,12 +35,13 @@ app.use('/', authRoutes)
 app.use(requireAuth)
 
 app.get('/', async (req, res) => {
-    const [userCount, groupCount, appCount] = await Promise.all([
+    const [userCount, groupCount, appCount, dashboard] = await Promise.all([
         prisma.user.count(),
         prisma.group.count(),
-        prisma.application.count()
+        prisma.application.count(),
+        fetchAllMetrics()
     ])
-    res.render('dashboard', {title: 'Dashboard', userCount, groupCount, appCount})
+    res.render('dashboard', {title: 'Dashboard', userCount, groupCount, appCount, dashboard})
 })
 
 app.use('/', routes)
