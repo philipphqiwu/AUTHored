@@ -65,13 +65,6 @@ export const eventsDeliveredTotal = new Counter({
   registers: [register]
 })
 
-export const rateLimitHitsTotal = new Counter({
-  name: 'authored_rate_limit_hits_total',
-  help: 'Total rate limit hits',
-  labelNames: ['route'],
-  registers: [register]
-})
-
 export const httpErrorsTotal = new Counter({
   name: 'authored_http_errors_total',
   help: 'Total HTTP error responses (4xx/5xx)',

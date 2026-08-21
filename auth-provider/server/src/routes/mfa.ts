@@ -5,7 +5,6 @@ import bcrypt from 'bcrypt'
 import crypto from 'crypto'
 import prisma from '../utils/prisma.js'
 import { generateToken, hashToken } from '../utils/crypto.js'
-import { loginLimiter } from '../middleware/rateLimit.js'
 import { mfaVerificationsTotal } from '../utils/metrics.js'
 
 const router = Router()
@@ -193,7 +192,7 @@ router.get('/mfa/verify', (req: Request, res: Response) => {
 })
 
 // POST /mfa/verify — Verify TOTP code during login
-router.post('/mfa/verify', loginLimiter, async (req: Request, res: Response) => {
+router.post('/mfa/verify', async (req: Request, res: Response) => {
   const pending = getMfaPendingCookie(req)
   if (!pending) {
     return res.redirect('/login')
