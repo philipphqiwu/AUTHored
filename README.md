@@ -326,3 +326,21 @@ Mengapa tidak JWT: Untuk sistem ini, instant revocation lebih penting dari perfo
 - Tidak ada sensitive data di error responses
 - HMAC signature untuk service-to-service authentication (`/internal/logout`)
 - Audit logs untuk semua operasi kritis
+
+## Screenshot
+
+### Control Panel - Dashboard
+
+![Dashboard](screenshots/dashboard.png)
+
+### Auth Server - Profile
+
+![Profile](screenshots/profile.png)
+
+### Auth Server - MFA Setup
+
+![MFA Setup](screenshots/mfa-setup.png)
+
+### App A - Home
+
+![App A](screenshots/app-a-home.png)
