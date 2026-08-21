@@ -20,6 +20,7 @@ const app = express()
 const PORT = process.env.PORT || 3000
 const __filename = fileURLToPath(import.meta.url)
 const __dirname = dirname(__filename)
+const SHUTDOWN_TIMEOUT_MS = 10000
 
 app.set('view engine', 'ejs')
 app.set('views', path.join(__dirname, 'views'))
@@ -56,13 +57,15 @@ app.get('/', async (req, res) => {
 app.use(notFoundHandler)
 app.use(errorHandler)
 
+let metricsInterval: NodeJS.Timeout | null = null
+
 const server = app.listen(PORT, async () => {
   console.log(`Auth Server running on http://localhost:${PORT}`)
   
   await connectEventPublisher()
   startPolling()
 
-  setInterval(async () => {
+  metricsInterval = setInterval(async () => {
     try {
       const sessions = await prisma.ssoSession.count({ where: { status: 'active' } })
       activeSsoSessions.set(sessions)
@@ -74,7 +77,18 @@ const server = app.listen(PORT, async () => {
 
 const shutdown = async (signal: string) => {
   console.log(`Auth Server received ${signal}, shutting down gracefully...`)
+
+  const forceExitTimer = setTimeout(() => {
+    console.error('Shutdown timeout reached, forcing exit')
+    process.exit(1)
+  }, SHUTDOWN_TIMEOUT_MS)
+  forceExitTimer.unref()
+
   server.close(async () => {
+    if (metricsInterval) {
+      clearInterval(metricsInterval)
+      metricsInterval = null
+    }
     await disconnectEventPublisher()
     await prisma.$disconnect()
     process.exit(0)

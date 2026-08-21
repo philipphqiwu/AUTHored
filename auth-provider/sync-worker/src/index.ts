@@ -24,9 +24,25 @@ const INTERNAL_SECRET = process.env.INTERNAL_SECRET || 'shared-secret-change-in-
 const MAX_RETRIES = 5
 const BASE_DELAY = 1000 // 1 second
 const QUEUE_POLL_INTERVAL = 5000 // 5 seconds
+const SHUTDOWN_TIMEOUT_MS = 10000 // 10 seconds
 
 let connection: amqp.Connection | null = null
 let channel: amqp.Channel | null = null
+let consumerTag: string | null = null
+let inflightCount = 0
+let shuttingDown = false
+let queuePollTimer: NodeJS.Timeout | null = null
+let metricsServer: ReturnType<typeof startMetricsServer> | null = null
+
+function onConnectionLost(prefix: string) {
+  return (err: Error) => {
+    console.error(`${prefix}:`, err.message)
+    connection = null
+    channel = null
+    rabbitmqConnected.set(0)
+    if (!shuttingDown) setTimeout(connect, 5000)
+  }
+}
 
 function generateHmacSignature(payload: string, secret: string): string {
   return crypto
@@ -41,8 +57,14 @@ function calculateBackoff(attemptCount: number): number {
 
 async function connect(): Promise<void> {
   try {
-    connection = await amqp.connect(RABBITMQ_URL) as any
-    channel = await (connection as any).createChannel()
+    const conn = await amqp.connect(RABBITMQ_URL) as any
+    const ch = await conn.createChannel()
+
+    conn.on('error', onConnectionLost('Sync Worker connection error'))
+    conn.on('close', onConnectionLost('Sync Worker connection closed'))
+
+    connection = conn
+    channel = ch
     
     await channel!.assertExchange(EXCHANGE_NAME, 'topic', { durable: true })
     await channel!.assertQueue(QUEUE_NAME, { durable: true })
@@ -54,10 +76,11 @@ async function connect(): Promise<void> {
     
     rabbitmqConnected.set(1)
     console.log('Sync Worker connected to RabbitMQ')
+    await startConsuming()
   } catch (error) {
     console.error('Sync Worker connection error:', error)
     rabbitmqConnected.set(0)
-    setTimeout(connect, 5000)
+    if (!shuttingDown) setTimeout(connect, 5000)
   }
 }
 
@@ -115,6 +138,7 @@ async function deliverEvent(event: any, application: any, reason: string): Promi
   if (delivery.status === 'completed') return true
 
   for (let attempt = delivery.attemptCount + 1; attempt <= MAX_RETRIES; attempt++) {
+    if (shuttingDown) return false
     if (attempt > 1) await delay(calculateBackoff(attempt - 1))
 
     const success = await notifyApp(application, event, reason)
@@ -189,9 +213,15 @@ async function startConsuming(): Promise<void> {
   
   console.log('Sync Worker started consuming events')
   
-  channel.consume(QUEUE_NAME, async (msg) => {
+  const result = await channel.consume(QUEUE_NAME, async (msg) => {
     if (!msg) return
     
+    if (shuttingDown) {
+      channel!.nack(msg, false, true)
+      return
+    }
+
+    inflightCount++
     try {
       const event = JSON.parse(msg.content.toString())
       const completed = await processEvent(event)
@@ -211,11 +241,15 @@ async function startConsuming(): Promise<void> {
         contentType: 'application/json'
       })
       channel!.ack(msg)
+    } finally {
+      inflightCount--
     }
   })
+  consumerTag = result.consumerTag
 }
 
 async function pollQueueDepth(): Promise<void> {
+  if (shuttingDown) return
   const auth = Buffer.from(`${RABBITMQ_USER}:${RABBITMQ_PASS}`).toString('base64')
   try {
     const [qRes, dlqRes] = await Promise.all([
@@ -241,27 +275,73 @@ async function pollQueueDepth(): Promise<void> {
   }
 }
 
+async function gracefulShutdown(signal: string): Promise<void> {
+  if (shuttingDown) return
+  shuttingDown = true
+  console.log(`Sync Worker received ${signal}, shutting down gracefully...`)
+
+  const forceExitTimer = setTimeout(() => {
+    console.error('Shutdown timeout reached, forcing exit')
+    process.exit(1)
+  }, SHUTDOWN_TIMEOUT_MS)
+  forceExitTimer.unref()
+
+  rabbitmqConnected.set(0)
+
+  if (queuePollTimer) {
+    clearInterval(queuePollTimer)
+    queuePollTimer = null
+  }
+
+  if (channel && consumerTag) {
+    try {
+      await channel.cancel(consumerTag)
+      console.log('Cancelled consumer, draining in-flight events...')
+    } catch (error) {
+      console.error('Error cancelling consumer:', error)
+    }
+  }
+
+  const drainStart = Date.now()
+  while (inflightCount > 0 && Date.now() - drainStart < SHUTDOWN_TIMEOUT_MS - 2000) {
+    console.log(`Waiting for ${inflightCount} in-flight event(s) to finish...`)
+    await delay(200)
+  }
+  if (inflightCount > 0) {
+    console.warn(`${inflightCount} in-flight event(s) still pending at shutdown`)
+  }
+
+  if (channel) {
+    try { await (channel as any).close() } catch {}
+    channel = null
+  }
+  if (connection) {
+    try { await (connection as any).close() } catch {}
+    connection = null
+  }
+
+  await prisma.$disconnect()
+  if (metricsServer) {
+    metricsServer.close()
+  }
+
+  console.log('Sync Worker shut down')
+  process.exit(0)
+}
+
 async function main(): Promise<void> {
   console.log('Sync Worker starting...')
   
-  startMetricsServer()
-  await connect()
-  await startConsuming()
+  const isReadyFn = async () => connection !== null && channel !== null
 
-  setInterval(pollQueueDepth, QUEUE_POLL_INTERVAL)
+  metricsServer = startMetricsServer(isReadyFn, () => gracefulShutdown('SIGTERM'))
+  await connect()
+
+  queuePollTimer = setInterval(pollQueueDepth, QUEUE_POLL_INTERVAL)
   pollQueueDepth()
   
-  const shutdown = async (signal: string) => {
-    console.log(`Sync Worker received ${signal}, shutting down gracefully...`)
-    rabbitmqConnected.set(0)
-    if (channel) await (channel as any).close()
-    if (connection) await (connection as any).close()
-    await prisma.$disconnect()
-    process.exit(0)
-  }
-  
-  process.on('SIGTERM', () => shutdown('SIGTERM'))
-  process.on('SIGINT', () => shutdown('SIGINT'))
+  process.on('SIGTERM', () => gracefulShutdown('SIGTERM'))
+  process.on('SIGINT', () => gracefulShutdown('SIGINT'))
 }
 
 main().catch(console.error)

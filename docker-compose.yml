@@ -59,7 +59,7 @@ services:
         condition: service_healthy
     networks:
       - authored-network
-    command: sh -c "npx prisma generate && npx prisma db push && npm run db:seed && npm start"
+    command: sh -c "npx prisma generate && npx prisma db push && npm run db:seed && exec ./node_modules/.bin/tsx src/index.ts"
 
   control-panel:
     build:
@@ -79,7 +79,7 @@ services:
         condition: service_healthy
     networks:
       - authored-network
-    command: sh -c "npx prisma generate && npm start"
+    command: sh -c "npx prisma generate && exec ./node_modules/.bin/tsx src/index.ts"
 
   app-a:
     build:
@@ -106,7 +106,7 @@ services:
         condition: service_started
     networks:
       - authored-network
-    command: sh -c "npx prisma db push && npm start"
+    command: sh -c "npx prisma generate && npx prisma db push && exec ./node_modules/.bin/tsx src/index.ts"
 
   app-b:
     build:
@@ -133,7 +133,7 @@ services:
         condition: service_started
     networks:
       - authored-network
-    command: sh -c "npx prisma db push && npm start"
+    command: sh -c "npx prisma generate && npx prisma db push && exec ./node_modules/.bin/tsx src/index.ts"
 
   sync-worker:
     build:
@@ -160,7 +160,7 @@ services:
         condition: service_started
     networks:
       - authored-network
-    command: sh -c "npx prisma generate && npm start"
+    command: sh -c "npx prisma generate && exec ./node_modules/.bin/tsx src/index.ts"
 
 volumes:
   postgres_data:

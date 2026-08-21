@@ -16,6 +16,7 @@ const app = express()
 const PORT = process.env.PORT || 3003
 const __filename = fileURLToPath(import.meta.url)
 const __dirname = dirname(__filename)
+const SHUTDOWN_TIMEOUT_MS = 10000
 
 app.set('view engine', 'ejs')
 app.set('views', path.join(__dirname, 'views'))
@@ -41,6 +42,13 @@ const server = app.listen(PORT, () => {
 
 const shutdown = (signal: string) => {
   console.log(`App B received ${signal}, shutting down gracefully...`)
+
+  const forceExitTimer = setTimeout(() => {
+    console.error('Shutdown timeout reached, forcing exit')
+    process.exit(1)
+  }, SHUTDOWN_TIMEOUT_MS)
+  forceExitTimer.unref()
+
   server.close(async () => {
     await prisma.$disconnect()
     process.exit(0)

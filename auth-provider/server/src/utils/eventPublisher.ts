@@ -11,10 +11,22 @@ let channel: amqp.Channel | null = null
 let isPolling = false
 let pollInterval: NodeJS.Timeout | null = null
 
+function onConnectionLost(prefix: string) {
+  return (err: Error) => {
+    console.error(`${prefix}:`, err.message)
+    connection = null
+    channel = null
+    setTimeout(connect, 5000)
+  }
+}
+
 export async function connect(): Promise<void> {
   try {
     const nextConnection = await amqp.connect(RABBITMQ_URL)
     const nextChannel = await nextConnection.createChannel()
+
+    nextConnection.on('error', onConnectionLost('Event Publisher connection error'))
+    nextConnection.on('close', onConnectionLost('Event Publisher connection closed'))
 
     connection = nextConnection
     channel = nextChannel
@@ -97,6 +109,10 @@ export function startPolling(): void {
   console.log('Event Publisher started polling')
   pollInterval = setInterval(pollAndPublish, POLL_INTERVAL)
   pollAndPublish()
+}
+
+export function isAmqpConnected(): boolean {
+  return connection !== null && channel !== null
 }
 
 export async function disconnect(): Promise<void> {
